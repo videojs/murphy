@@ -1,0 +1,9 @@
+#EXTM3U
+#EXT-X-STREAM-INF:PROGRAM-ID=1, BANDWIDTH=200000
+../../live/apple/gear1/prog_index.m3u8
+#EXT-X-STREAM-INF:PROGRAM-ID=1, BANDWIDTH=311111
+../../live/apple/gear2/prog_index.m3u8
+#EXT-X-STREAM-INF:PROGRAM-ID=1, BANDWIDTH=484444
+../../live/apple/gear3/prog_index.m3u8
+#EXT-X-STREAM-INF:PROGRAM-ID=1, BANDWIDTH=737777
+../../live/apple/gear4/prog_index.m3u8

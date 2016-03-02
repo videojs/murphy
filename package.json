@@ -1,0 +1,21 @@
+{
+  "name": "murphy",
+  "description": "A testing Ad Server for Gen5 players.",
+  "version": "0.0.1",
+  "author": "mroca",
+  "bin": "./murphy.js",
+  "scripts": {
+    "test": "node ./test/live.test.js",
+    "start": "node murphy.js"
+  },
+  "dependencies": {
+    "express": "~3.3.4",
+    "express3-handlebars": "~0.5.0",
+    "handlebars": "~1.0.12",
+    "lodash": "~2.4"
+  },
+  "devDependencies": {
+    "tape": "^4.4.0",
+    "node-mocks-http": "^1.5.1"
+  }
+}

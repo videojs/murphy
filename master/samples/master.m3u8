@@ -1,0 +1,5 @@
+#EXTM3U
+#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=174000,RESOLUTION=416x234,CODECS="avc1.66.30, mp4a.40.2"
+../../live/renditions/samples/two/sp_manifest2.m3u8
+#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=174000,RESOLUTION=416x234,CODECS="avc1.66.30, mp4a.40.2"
+../../live/renditions/samples/three/sp_manifest3.m3u8
