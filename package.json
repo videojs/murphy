@@ -3,7 +3,7 @@
   "description": "A testing Ad Server for Gen5 players.",
   "version": "0.0.1",
   "author": "mroca",
-  "bin": "./murphy.js",
+  "bin": "./murphy",
   "scripts": {
     "test": "node ./test/live.test.js",
     "start": "node murphy"
