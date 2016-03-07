@@ -69,9 +69,6 @@ app.use('/error', liveHls.injectError);
 
 app.use('/redirect', liveHls.redirect);
 
-// serve captions
-app.use('/captions', express.static(__dirname + '/captions'));
-
 // simulate live HLS playlists with seeking support for the entire
 // event
 app.use('/event', liveHls.event);
