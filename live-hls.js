@@ -23,7 +23,9 @@ var defaults = {
   counter: 0,
   lastStartPosition: 0,
   tsnotfound: 0,
-  manifestnotfound: 0
+  manifestnotfound: 0,
+  resetStream: 0,
+  stopStream: 0
 };
 var manifest = [];
 var redirect = [];
@@ -32,7 +34,10 @@ var event;
 var live;
 var filterPlaylist;
 var getStream;
-var resetStream;
+var resetLiveStream;
+var resetAllStreams;
+var stopLiveStream;
+var stopAllStreams;
 var dataRequest;
 var injectError;
 var getHeaderObjects;
@@ -383,10 +388,29 @@ getStream = function(name) {
   return stream;
 };
 
-resetStream = function(name) {
+resetLiveStream = function(name) {
   console.log('resetting stream:', name);
   delete streams[name];
   return getStream(name);
+};
+
+resetAllStreams = function() {
+  var streamName;
+  for(streamName in streams) {
+    resetLiveStream(streamName);
+  }
+};
+
+stopLiveStream = function(name) {
+  console.log('stop stream:', name);
+  delete streams[name];
+};
+
+stopAllStreams = function() {
+  var streamName;
+  for(streamName in streams) {
+    stopLiveStream(streamName);
+  }
 };
 
 //Start each rendition at the same time
@@ -394,10 +418,12 @@ master = function(request, response) {
   var renditions = [], result, lines, i;
   console.log('fetch master: ' + request.path);
   fs.readFile(path.join(__dirname, 'master', request.path), function(error, data) {
-
     if (error) {
       return response.send(404, error);
     }
+
+    //Check for reset request
+
 
     result = data.toString();
     lines = result.split('\n');
@@ -409,9 +435,23 @@ master = function(request, response) {
     }
 
     for(i = 0;i<renditions.length;i++) {
+      if (request.query.resetStream==1) {
+        resetLiveStream(renditions[i]);
+      }
       getStream(renditions[i]);
+      if (request.query.stopStream==1) {
+        stopLiveStream(renditions[i]);
+      }
       console.log('start rendition stream: ' + renditions[i]);
     }
+
+    if (request.query.resetStream==2) {
+      resetAllStreams();
+    }
+    if (request.query.stopStream==2) {
+      stopAllStreams();
+    }
+
 
     response.setHeader('Content-type', 'application/x-mpegURL');
     response.charset = 'UTF-8';
@@ -443,7 +483,7 @@ event = function(request, response) {
       event);
 
     if (playlist.length === result.length) {
-      resetStream('event/' + request.path);
+      resetLiveStream('event/' + request.path);
     }
 
     response.setHeader('Content-type', 'application/x-mpegURL');
@@ -505,6 +545,27 @@ processErrors = function(request, response, event) {
     console.log('send manifest 404');
     response.status(404).send('not found');
     return true;
+  }
+  if (event.resetStream>0) {
+    //1 - Reset just this stream
+    if (event.resetStream==1) {
+      resetLiveStream('live' + request.path);
+    }
+    //2 - Reset all streams
+    if (event.resetStream==2) {
+      resetAllStreams();
+    }
+  }
+  if (event.stopStream>0) {
+    //1 - Stop just this stream
+
+    if (event.stopStream==1) {
+      stopLiveStream('live' + request.path);
+    }
+    //2 - Stop all streams
+    if (event.stopStream==2) {
+      stopAllStreams();
+    }
   }
   return false;
 };
@@ -569,6 +630,25 @@ live = function(request, response) {
       };
     }
 
+    if (event.resetStream==1) {
+      event.resetStream = 0;
+      resetLiveStream(streampath);
+    }
+    if (event.resetStream==2) {
+      event.resetStream = 0;
+      resetAllStreams();
+    }
+
+    if (event.stopStream==1) {
+      event.resetStream = 0;
+      stopLiveStream(streampath);
+    }
+
+    if (event.stopStream==2) {
+      event.resetStream = 0;
+      stopAllStreams();
+    }
+    
     if (event.tsnotfound>0) {
       //Pick a future .ts file to inject 404
       tsstreampath = manifest[streampath].resources[event.lastStartPosition + event.window + 1].tsfile;
