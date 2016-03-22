@@ -34,9 +34,9 @@ var event;
 var live;
 var filterPlaylist;
 var getStream;
-var resetStream;
+var resetLiveStream;
 var resetAllStreams;
-var stopStream;
+var stopLiveStream;
 var stopAllStreams;
 var dataRequest;
 var injectError;
@@ -388,7 +388,7 @@ getStream = function(name) {
   return stream;
 };
 
-resetStream = function(name) {
+resetLiveStream = function(name) {
   console.log('resetting stream:', name);
   delete streams[name];
   return getStream(name);
@@ -397,11 +397,11 @@ resetStream = function(name) {
 resetAllStreams = function() {
   var streamName;
   for(streamName in streams) {
-    resetStream(streamName);
+    resetLiveStream(streamName);
   }
 };
 
-stopStream = function(name) {
+stopLiveStream = function(name) {
   console.log('stop stream:', name);
   delete streams[name];
 };
@@ -409,7 +409,7 @@ stopStream = function(name) {
 stopAllStreams = function() {
   var streamName;
   for(streamName in streams) {
-    stopStream(streamName);
+    stopLiveStream(streamName);
   }
 };
 
@@ -436,11 +436,11 @@ master = function(request, response) {
 
     for(i = 0;i<renditions.length;i++) {
       if (request.query.resetStream==1) {
-        resetStream(renditions[i]);
+        resetLiveStream(renditions[i]);
       }
       getStream(renditions[i]);
       if (request.query.stopStream==1) {
-        stopStream(renditions[i]);
+        stopLiveStream(renditions[i]);
       }
       console.log('start rendition stream: ' + renditions[i]);
     }
@@ -483,7 +483,7 @@ event = function(request, response) {
       event);
 
     if (playlist.length === result.length) {
-      resetStream('event/' + request.path);
+      resetLiveStream('event/' + request.path);
     }
 
     response.setHeader('Content-type', 'application/x-mpegURL');
@@ -549,7 +549,7 @@ processErrors = function(request, response, event) {
   if (event.resetStream>0) {
     //1 - Reset just this stream
     if (event.resetStream==1) {
-      resetStream('live' + request.path);
+      resetLiveStream('live' + request.path);
     }
     //2 - Reset all streams
     if (event.resetStream==2) {
@@ -560,7 +560,7 @@ processErrors = function(request, response, event) {
     //1 - Stop just this stream
 
     if (event.stopStream==1) {
-      stopStream('live' + request.path);
+      stopLiveStream('live' + request.path);
     }
     //2 - Stop all streams
     if (event.stopStream==2) {
@@ -632,7 +632,7 @@ live = function(request, response) {
 
     if (event.resetStream==1) {
       event.resetStream = 0;
-      resetStream(streampath);
+      resetLiveStream(streampath);
     }
     if (event.resetStream==2) {
       event.resetStream = 0;
@@ -641,7 +641,7 @@ live = function(request, response) {
 
     if (event.stopStream==1) {
       event.resetStream = 0;
-      stopStream(streampath);
+      stopLiveStream(streampath);
     }
 
     if (event.stopStream==2) {
