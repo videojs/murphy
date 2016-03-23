@@ -5,6 +5,11 @@
     <title>Murphy Streams</title>
 </head>
 <body>
+<script>
+    injectError = function(theurl) {
+        document.getElementById('iframe').src=theurl;
+    }
+</script>
 
 <style type="text/css">
     .tg  {border-collapse:collapse;border-spacing:0;border-color:#999;}
@@ -21,6 +26,6 @@
     </tr>
     <!--InjectRows-->
 </table>
-
+<iframe id="iframe" src="" />
 </body>
 </html>
