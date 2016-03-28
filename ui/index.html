@@ -8,7 +8,13 @@
 <script>
     injectError = function(theurl) {
         document.getElementById('iframe').src=theurl;
+        console.log(theurl);
     }
+    resetAllStreams = function(theurl) {
+      document.getElementById('iframe').src = theurl;
+      console.log(theurl);
+    }
+
 </script>
 
 <style type="text/css">
@@ -21,11 +27,13 @@
 <table class="tg">
     <tr>
         <th class="tg-031e">Stream</th>
+        <!--InjectHeaders-->
         <th class="tg-yw4l"></th>
         <th class="tg-yw4l"></th>
+        <th class="tg-yw4l"><button onclick="resetAllStreams('http://localhost:9191/master/apple/bipbopall.m3u8?resetStream=1')">Reset</button></th>
     </tr>
     <!--InjectRows-->
 </table>
-<iframe id="iframe" src="" />
+<iframe id="iframe" src="" height="1" width="1"/>
 </body>
 </html>

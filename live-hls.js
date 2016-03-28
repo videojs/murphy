@@ -350,12 +350,13 @@ ui = function(request, response) {
       return response.send(404, error);
     }
     result = data.toString();
+
     for (key in streams) {
       if (key.indexOf('.m3u8') >-1 ) {
         button = '<td><button onclick=\"injectError(\'../'+key.replace('live', 'error')+'?errorcode=1\')\">errortext</button></td>';
         rows += '<tr><td>' + key + '</td>'+
           button.replace('errorcode', 'tsnotfound').replace('errortext','ts404') +
-          button.replace('errorcode', 'manifestnotfound').replace('errortext','manifest404') + '</tr>\n';
+          button.replace('errorcode', 'manifestnotfound').replace('errortext','manifest404') + '<td><button onclick=\"resetAllStreams(\'http://localhost:9191/' + key + '?resetStream=1\')\">Reset</button></td>' + '</tr>\n';
       }
       if (key.indexOf('.ts') > -1) {
         resources += '<tr><td>' + key + '</td></tr>';
@@ -648,7 +649,7 @@ live = function(request, response) {
       event.resetStream = 0;
       stopAllStreams();
     }
-    
+
     if (event.tsnotfound>0) {
       //Pick a future .ts file to inject 404
       tsstreampath = manifest[streampath].resources[event.lastStartPosition + event.window + 1].tsfile;
