@@ -7,7 +7,7 @@ var path = require('path');
 var url = require('url');
 var express = require('express');
 var streams = {};
-var debug = 0;
+var debug = 1;
 var defaults = {
   // seconds per resource
   rate: 10,
@@ -99,6 +99,10 @@ getHeaderObjects = function(fileContent) {
       continue;
     }
 
+    if(lines[i].toLowerCase().indexOf('.aac') > -1) {
+      break;
+    }
+
     if (lines[i].toLowerCase().indexOf('.ts')>-1) {
       //break out because we're no longer in header
       break;
@@ -114,11 +118,40 @@ getHeaderObjects = function(fileContent) {
   return header;
 };
 
+getSegmentHeader = function(lines, index) {
+  var i;
+  var header='';
+  var byterange='';
+  var segment;
+  for(i=(index-1);i>0;i--) {
+    //Search backwards from index to get all header lines
+    if (lines[i].indexOf('EXTINF')>-1) {
+      header=lines[i];
+    } else if (lines[i].indexOf('EXT-X-BYTERANGE') > -1) {
+      byterange=lines[i];
+    } else
+    {
+      break;
+    }
+  }
+  segment = {
+    tsfile: lines[index]
+  };
+  if (byterange!='') {
+    segment.byterange=byterange;
+  }
+  if (header!='') {
+    segment.header=header;
+  }
+  return segment;
+};
+
 getResources = function(fileContent, request) {
   var lines = fileContent.split('\n');
   var header;
   var file;
   var resource = [];
+  var segment;
   var redirectFile;
   var ext;
   var arr;
@@ -128,37 +161,42 @@ getResources = function(fileContent, request) {
   for (i = 0;i < lines.length;i++) {
     header = null;
     file = null;
-    if (lines[i].toLowerCase().indexOf('.ts') > 0) {
+    if ((lines[i].toLowerCase().indexOf('.ts') > 0) || (lines[i].toLowerCase().indexOf('.aac')) > 0) {
+      segment=getSegmentHeader(lines, i);
+      //
+
       file = lines[i];
-      if (lines[i-1].indexOf('#EXT')>-1) {
-        header = lines[i-1];
-        if (file.indexOf('http')>-1) {
-          arr = file.split('.');
-          if (arr.length>1) {
-            ext = arr[arr.length-1];
-          }
-          reqpathmod = request.path.substr(0, request.path.lastIndexOf('/') + 1);
-          debuglog(reqpathmod);
-          debuglog('request path: ' + request.path);
-          redirectFile = 'redirect' + reqpathmod + redirectCount + '.' + ext;
-          redirectCount++;
-          redirect[redirectFile] = file;
-          debuglog('save redirect: ' + redirectFile + ' - ' + file);
-          for(j = 0;j<reqpathmod.split('/').length - 1;j++) {
-            prepend_redirectFile = prepend_redirectFile + '../';
-          }
-          file = prepend_redirectFile + redirectFile;
-          prepend_redirectFile = '';
-          debuglog('file: ' + file);
+      // if (lines[i-1].indexOf('#EXT')>-1) {
+      //   header = lines[i-1];
+      if (file.indexOf('http')>-1) {
+        arr = file.split('.');
+        if (arr.length > 1) {
+          ext = arr[arr.length - 1];
         }
-        resource.push(
-          {header: header,
-            tsfile: file}
-        );
+        reqpathmod = request.path.substr(0, request.path.lastIndexOf('/') + 1);
+        debuglog(reqpathmod);
+        debuglog('request path: ' + request.path);
+        redirectFile = 'redirect' + reqpathmod + redirectCount + '.' + ext;
+        redirectCount++;
+        redirect[redirectFile] = file;
+        debuglog('save redirect: ' + redirectFile + ' - ' + file);
+        for (j = 0; j < reqpathmod.split('/').length - 1; j++) {
+          prepend_redirectFile = prepend_redirectFile + '../';
+        }
+        file = prepend_redirectFile + redirectFile;
+        prepend_redirectFile = '';
+        debuglog('file: ' + file);
+        segment.tsfile=file;
       }
-      else {
-        resource.push({tsfile: file});
-      }
+      resource.push(segment);
+      //   resource.push(
+      //     {header: header,
+      //       tsfile: file}
+      //   );
+      // }
+      // else {
+      //   resource.push({tsfile: file});
+      // }
     }
   }
   return resource;
@@ -243,6 +281,9 @@ extractResourceWindow = function(mfest,duration,event) {
     if (resource[i].header) {
       lines.push(resource[i].header);
     }
+    if (resource[i].byterange) {
+      lines.push(resource[i].byterange);
+    }
     if (resource[i].tsfile) {
       lines.push(resource[i].tsfile);
     }
@@ -252,6 +293,9 @@ extractResourceWindow = function(mfest,duration,event) {
     for(i = 0;i<overflow;i++) {
       if (resource[i].header) {
         lines.push(resource[i].header);
+      }
+      if (resource[i].byterange) {
+        lines.push(resource[i].byterange);
       }
       if (resource[i].tsfile) {
         lines.push(resource[i].tsfile);
@@ -357,7 +401,7 @@ ui = function(request, response) {
           button.replace('errorcode', 'tsnotfound').replace('errortext','ts404') +
           button.replace('errorcode', 'manifestnotfound').replace('errortext','manifest404') + '</tr>\n';
       }
-      if (key.indexOf('.ts') > -1) {
+      if ((key.indexOf('.ts') > -1) || (key.indexOf('.aac') > -1)) {
         resources += '<tr><td>' + key + '</td></tr>';
       }
     }
@@ -415,21 +459,30 @@ stopAllStreams = function() {
 
 //Start each rendition at the same time
 master = function(request, response) {
-  var renditions = [], result, lines, i;
+  var renditions = [], result, lines, i, uriIndex, line;
   console.log('fetch master: ' + request.path);
   fs.readFile(path.join(__dirname, 'master', request.path), function(error, data) {
     if (error) {
       return response.send(404, error);
     }
 
-    //Check for reset request
-
-
     result = data.toString();
     lines = result.split('\n');
 
     for(i = 0;i<lines.length;i++) {
-      if (lines[i].indexOf('.m3u8')>-1) {
+      if (lines[i].indexOf('EXT-X-MEDIA') > -1) {
+        if (lines[i].indexOf('TYPE=AUDIO') > -1) {
+          uriIndex = lines[i].indexOf('URI=');
+          if (uriIndex > -1) {
+            line=lines[i];
+            renditions.push(trimCharacters(line.substr(uriIndex+5), ['\'', '"', '/', '.']));
+          }
+        }
+      }
+      else if (lines[i].indexOf('EXT') > -1) {
+        continue;
+      }
+      else if (lines[i].indexOf('.m3u8')>-1) {
         renditions.push(trimCharacters(lines[i], ['.','/']));
       }
     }
@@ -648,7 +701,7 @@ live = function(request, response) {
       event.resetStream = 0;
       stopAllStreams();
     }
-    
+
     if (event.tsnotfound>0) {
       //Pick a future .ts file to inject 404
       tsstreampath = manifest[streampath].resources[event.lastStartPosition + event.window + 1].tsfile;

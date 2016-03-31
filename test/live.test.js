@@ -39,6 +39,24 @@ test('getResources: Get resource file data into object', function(t) {
   t.end();
 });
 
+test('getResources: Get resource file data into object', function(t) {
+  var resourceObject, i;
+  var request = {path: ''};
+  fs.readFile('./data/maat/gear0/prog_index.m3u8', function (error, data) {
+    if (error) {
+      throw error;
+    }
+    resourceObject = livehls.getResources(data.toString(), request);
+    for(i=0;i<10;i++) {
+      t.equal(resourceObject[i].tsfile, '../../../data/maat/gear0/main.aac',
+        'resource file at index ' + i);
+      t.equal(resourceObject[i].byterange.substring('#EXT-X-BYTERANGE', 16),
+        '#EXT-X-BYTERANGE', 'Segment contains byte range');
+    }
+  });
+  t.end();
+});
+
 test('getResources: Get redirected resource file data', function(t) {
   var resourceObject, i;
   var request = {path: '/apple/gear4/prog_index.m3u8'};
