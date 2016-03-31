@@ -1,0 +1,23 @@
+#EXTM3U
+
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="bipbop_audio",LANGUAGE="eng",NAME="BipBop Audio 1",AUTOSELECT=YES,DEFAULT=YES
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="bipbop_audio",LANGUAGE="eng",NAME="BipBop Audio 2",AUTOSELECT=NO,DEFAULT=NO,URI="../../live/maat/altaudio/prog_index.m3u8"
+
+#EXT-X-STREAM-INF:BANDWIDTH=263851,CODECS="mp4a.40.2, avc1.4d400d",RESOLUTION=416x234,AUDIO="bipbop_audio",SUBTITLES="subs"
+../../live/maat/gear1/prog_index.m3u8
+#EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=28451,CODECS="avc1.4d400d",URI="https://s3.amazonaws.com/_bc_dml/example-content/bipbop-advanced/gear1/iframe_index.m3u8"
+
+#EXT-X-STREAM-INF:BANDWIDTH=577610,CODECS="mp4a.40.2, avc1.4d401e",RESOLUTION=640x360,AUDIO="bipbop_audio",SUBTITLES="subs"
+../../live/maat/gear2/prog_index.m3u8
+#EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=181534,CODECS="avc1.4d401e",URI="https://s3.amazonaws.com/_bc_dml/example-content/bipbop-advanced/gear2/iframe_index.m3u8"
+
+#EXT-X-STREAM-INF:BANDWIDTH=915905,CODECS="mp4a.40.2, avc1.4d401f",RESOLUTION=960x540,AUDIO="bipbop_audio",SUBTITLES="subs"
+../../live/maat/gear3/prog_index.m3u8
+#EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=297056,CODECS="avc1.4d401f",URI="https://s3.amazonaws.com/_bc_dml/example-content/bipbop-advanced/gear3/iframe_index.m3u8"
+
+#EXT-X-STREAM-INF:BANDWIDTH=1030138,CODECS="mp4a.40.2, avc1.4d401f",RESOLUTION=1280x720,AUDIO="bipbop_audio",SUBTITLES="subs"
+../../live/maat/gear4/prog_index.m3u8
+#EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=339492,CODECS="avc1.4d401f",URI="https://s3.amazonaws.com/_bc_dml/example-content/bipbop-advanced/gear4/iframe_index.m3u8"
+
+#EXT-X-STREAM-INF:BANDWIDTH=41457,CODECS="mp4a.40.2",AUDIO="bipbop_audio",SUBTITLES="subs"
+../../live/maat/gear0/prog_index.m3u8
