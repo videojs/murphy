@@ -39,7 +39,8 @@ For example, this following link will stop all renditions in the master manifest
 If you would like to see a barebones UI that shows which streams are currently being simulated, go to the following link: 
 `http://localhost:9191/ui/index.html`
 
-
+Added support for multiple alternate audio.  Here is a sample maat playlist:
+`http://localhost:9191/master/maat/bunnyplaylist.m3u8`
 
 Note: At default, no streams are simulated when the server is started.  A simulation will begin as soon as there is a request for one.
 
