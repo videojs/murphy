@@ -7,7 +7,7 @@ var path = require('path');
 var url = require('url');
 var express = require('express');
 var streams = {};
-var debug = 1;
+var debug = 0;
 var defaults = {
   // seconds per resource
   rate: 10,
@@ -163,11 +163,8 @@ getResources = function(fileContent, request) {
     file = null;
     if ((lines[i].toLowerCase().indexOf('.ts') > 0) || (lines[i].toLowerCase().indexOf('.aac')) > 0) {
       segment=getSegmentHeader(lines, i);
-      //
 
       file = lines[i];
-      // if (lines[i-1].indexOf('#EXT')>-1) {
-      //   header = lines[i-1];
       if (file.indexOf('http')>-1) {
         arr = file.split('.');
         if (arr.length > 1) {
@@ -189,14 +186,6 @@ getResources = function(fileContent, request) {
         segment.tsfile=file;
       }
       resource.push(segment);
-      //   resource.push(
-      //     {header: header,
-      //       tsfile: file}
-      //   );
-      // }
-      // else {
-      //   resource.push({tsfile: file});
-      // }
     }
   }
   return resource;
