@@ -1,0 +1,6 @@
+#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",LANGUAGE="en",NAME="English",DEFAULT=YES,URI="../../live/maat/bunny/en/audio_en.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",LANGUAGE="de",NAME="Music",DEFAULT=NO,URI="../../live/maat/bunny/de/audio_de.m3u8"
+#EXT-X-STREAM-INF:BANDWIDTH=600000,CODECS="avc1.66.30",RESOLUTION=640x360,AUDIO="aac"
+../../live/maat/bunny/video/video.m3u8
