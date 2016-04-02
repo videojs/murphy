@@ -19,6 +19,8 @@ var defaults = {
   step: 1,
   // the number of dropped media files
   dropped: 0,
+  //
+  discontinuity: 0,
   //counter (obsolete?)
   counter: 0,
   lastStartPosition: 0,
@@ -73,6 +75,10 @@ getHeaderObjects = function(fileContent) {
       tag: '#EXT-X-MEDIA-SEQUENCE',
       value: 0
     },
+    Discontinuity: {
+      tag: '#EXT-X-DISCONTINUITY-SEQUENCE',
+      value: 0
+    },
     Extra: []
   };
   for(var i = 0;i<lines.length;i++) {
@@ -91,7 +97,11 @@ getHeaderObjects = function(fileContent) {
       header.MediaSequence.value = lines[i].substr(indexOfColon + 1,lines[i].length-indexOfColon);
       continue;
     }
-    //Todo: Add Discontinuity Sequence
+    if (lines[i].indexOf('#EXT-X-DISCONTINUITY-SEQUENCE:') === 0) {
+      header.Discontinuity.tag = '#EXT-X-DISCONTINUITY-SEQUENCE';
+      header.Discontinuity.value = lines[i].substr(indexOfColon + 1,lines[i].length-indexOfColon);
+      continue;
+    }
 
     if (lines[i].indexOf('#EXT-X-TARGETDURATION') === 0) {
       header.TargetDuration.tag = '#EXT-X-TARGETDURATION';
@@ -232,6 +242,9 @@ extractHeader = function(header, event) {
   if (header.MediaSequence) {
     lines.push(header.MediaSequence.tag + ':' + event.dropped);
   }
+  if (header.Discontinuity) {
+    lines.push(header.Discontinuity.tag + ':' + event.discontinuity);
+  }
   if (header.Extra) {
     for(var i = 0;i<header.Extra.length;i++) {
       lines.push(header.Extra[i]);
@@ -249,22 +262,32 @@ extractResourceWindow = function(mfest,duration,event) {
   var lines;
   var i;
   startposition = Math.floor((duration*0.001)/event.rate);
+  debuglog('start before mod ' + startposition);
+  debuglog('event start '+event.start);
+  event.discontinuity=Math.floor(startposition/resource.length);
+  event.dropped=startposition;
+  if (event.dropped<0) {
+    event.dropped=0;
+  }
   startposition = startposition%resource.length;
+
   //startposition = startposition - (startposition % options.step);
   if (event.lastStartPosition<startposition) {
-    event.dropped++;
     debuglog('dropped: ' + event.dropped);
   }
   endposition = startposition + event.window-1;
+
   if (endposition >= resource.length) {
     debuglog('endposition before mod: ' + endposition);
     overflow = endposition-(resource.length-1);
+
     endposition = resource.length-1;
   }
   debuglog('startposition: ' + startposition);
   debuglog('endposition: ' + endposition);
   debuglog('overflow: ' + overflow);
   debuglog('resource length: ' + resource.length);
+  debuglog('rate: ' + event.rate);
   lines=extractHeader(header, event);
   for(i = startposition;i <= endposition;i++) {
     if (resource[i].header) {
@@ -333,7 +356,7 @@ filterPlaylist = function(playlist, time, options) {
 
 
   startposition = options.init+Math.floor(temptime / options.rate);
-
+  options.dropped=startposition;
   debuglog('init: ' + options.init);
   debuglog('time * 0.001 = ' + temptime);
   debuglog('options.rate: ' + options.rate);
@@ -345,7 +368,6 @@ filterPlaylist = function(playlist, time, options) {
   if (startposition<options.init) startposition = options.init+1;
   debuglog('startposition' + startposition + '%' + options.step + ' = ' + (startposition%options.step));
   if ((startposition%options.step) == 0) {
-    options.dropped++;
     debuglog('dropped: ' + options.dropped);
   }
   debuglog('((startposition' + startposition + '-event.init' + options.init +
@@ -368,6 +390,7 @@ filterPlaylist = function(playlist, time, options) {
   if (overflow>0) {
     debuglog('overflow: ' + overflow);
     filteredLines[filteredLines.length-1] += '\n#EXT-X-DISCONTINUITY';
+    event.discontinuity++;
     debuglog(filteredLines[filteredLines.length-1]);
     filteredLines = filteredLines.concat(lines.slice(options.init, options.init + overflow));
     overflow = 0;
@@ -446,9 +469,24 @@ stopAllStreams = function() {
   }
 };
 
+var parseQueryString = function( queryString ) {
+  var params = {}, queries, temp, i, l;
+
+  // Split into key/value pairs
+  queries = queryString.split("&amp;");
+
+  // Convert the array of strings into an object
+  for ( i = 0, l = queries.length; i < l; i++ ) {
+    temp = queries[i].split('=');
+    params[temp[0]] = temp[1];
+  }
+
+  return params;
+};
+
 //Start each rendition at the same time
 master = function(request, response) {
-  var renditions = [], result, lines, i, uriIndex, line;
+  var renditions = [], result, lines, i, uriIndex, line, currentRendition, currentPath, currentQuery, urlarr;
   console.log('fetch master: ' + request.path);
   fs.readFile(path.join(__dirname, 'master', request.path), function(error, data) {
     if (error) {
@@ -480,11 +518,26 @@ master = function(request, response) {
       if (request.query.resetStream==1) {
         resetLiveStream(renditions[i]);
       }
-      getStream(renditions[i]);
+      
+      //Ensure stream starts simultaneously with other renditions
+      currentRendition=renditions[i];
+      urlarr=currentRendition.split('?');
+      currentPath=urlarr[0];
+      if (urlarr[1]) {
+        currentQuery=parseQueryString(urlarr[1]);
+        test1=extend(getStream(currentPath), currentQuery);
+        test2=extend(getStream(renditions[i]), currentQuery);
+        console.log('start rendition stream: ' + currentPath);
+        console.log('start rendition stream: ' + renditions[i]);
+      }
+      else {
+        console.log('start rendition stream: ' + renditions[i]);
+        getStream(renditions[i]);
+      }
+
       if (request.query.stopStream==1) {
         stopLiveStream(renditions[i]);
       }
-      console.log('start rendition stream: ' + renditions[i]);
     }
 
     if (request.query.resetStream==2) {
