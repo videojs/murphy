@@ -487,6 +487,7 @@ var parseQueryString = function( queryString ) {
 //Start each rendition at the same time
 master = function(request, response) {
   var renditions = [], result, lines, i, uriIndex, line, currentRendition, currentPath, currentQuery, urlarr;
+  var strm;
   console.log('fetch master: ' + request.path);
   fs.readFile(path.join(__dirname, 'master', request.path), function(error, data) {
     if (error) {
@@ -501,8 +502,8 @@ master = function(request, response) {
         if (lines[i].indexOf('TYPE=AUDIO') > -1) {
           uriIndex = lines[i].indexOf('URI=');
           if (uriIndex > -1) {
-            line=lines[i];
-            renditions.push(trimCharacters(line.substr(uriIndex+5), ['\'', '"', '/', '.']));
+            line=trimCharacters(lines[i].substr(uriIndex+5), ['\'', '/', '.']).replace(/['"]+/g, '');
+            renditions.push(line);
           }
         }
       }
@@ -525,14 +526,16 @@ master = function(request, response) {
       currentPath=urlarr[0];
       if (urlarr[1]) {
         currentQuery=parseQueryString(urlarr[1]);
-        test1=extend(getStream(currentPath), currentQuery);
-        test2=extend(getStream(renditions[i]), currentQuery);
-        console.log('start rendition stream: ' + currentPath);
-        console.log('start rendition stream: ' + renditions[i]);
+        strm=extend(getStream(currentPath), currentQuery);
+        console.log('start rendition stream: ' + currentPath + ' start: ' + strm.start);
+        strm=extend(getStream(renditions[i]), currentQuery);
+        console.log('start rendition stream: ' + renditions[i] + ' start: ' + strm.start);
+
       }
       else {
         console.log('start rendition stream: ' + renditions[i]);
-        getStream(renditions[i]);
+        strm=getStream(renditions[i]);
+        console.log('start rendition stream: ' + renditions[i] + ' start: ' + strm.start);
       }
 
       if (request.query.stopStream==1) {
