@@ -60,9 +60,9 @@ debuglog = function(str) {
   }
 };
 getHeaderObjects = function(fileContent) {
-  var lines = fileContent.split('\n');
-  var indexOfColon;
-  var header = {
+  var lines = fileContent.split('\n'),
+    indexOfColon,
+    header = {
     PlaylistType: {
       tag: '#EXT-X-PLAYLIST-TYPE',
       value: ''
@@ -129,10 +129,10 @@ getHeaderObjects = function(fileContent) {
 };
 
 getSegmentHeader = function(lines, index) {
-  var i;
-  var header='';
-  var byterange='';
-  var segment;
+  var i,
+    header='',
+    byterange='',
+    segment;
   for(i=(index-1);i>0;i--) {
     //Search backwards from index to get all header lines
     if (lines[i].indexOf('EXTINF')>-1) {
@@ -157,17 +157,18 @@ getSegmentHeader = function(lines, index) {
 };
 
 getResources = function(fileContent, request) {
-  var lines = fileContent.split('\n');
-  var header;
-  var file;
-  var resource = [];
-  var segment;
-  var redirectFile;
-  var ext;
-  var arr;
-  var reqpathmod;
-  var prepend_redirectFile = '';
-  var i, j;
+  var lines = fileContent.split('\n'),
+    header,
+    file,
+    resource = [],
+    segment,
+    redirectFile,
+    ext,
+    arr,
+    reqpathmod,
+    prepend_redirectFile = '',
+    i,
+    j;
   for (i = 0;i < lines.length;i++) {
     header = null;
     file = null;
@@ -486,8 +487,17 @@ var parseQueryString = function( queryString ) {
 
 //Start each rendition at the same time
 master = function(request, response) {
-  var renditions = [], result, lines, i, uriIndex, line, currentRendition, currentPath, currentQuery, urlarr;
-  var strm;
+  var renditions = [],
+    result,
+    lines,
+    i,
+    uriIndex,
+    line,
+    currentRendition,
+    currentPath,
+    currentQuery,
+    urlarr,
+    strm;
   console.log('fetch master: ' + request.path);
   fs.readFile(path.join(__dirname, 'master', request.path), function(error, data) {
     if (error) {
