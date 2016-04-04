@@ -19,6 +19,8 @@ var defaults = {
   step: 1,
   // the number of dropped media files
   dropped: 0,
+  //
+  discontinuity: 0,
   //counter (obsolete?)
   counter: 0,
   lastStartPosition: 0,
@@ -58,9 +60,9 @@ debuglog = function(str) {
   }
 };
 getHeaderObjects = function(fileContent) {
-  var lines = fileContent.split('\n');
-  var indexOfColon;
-  var header = {
+  var lines = fileContent.split('\n'),
+    indexOfColon,
+    header = {
     PlaylistType: {
       tag: '#EXT-X-PLAYLIST-TYPE',
       value: ''
@@ -71,6 +73,10 @@ getHeaderObjects = function(fileContent) {
     },
     MediaSequence: {
       tag: '#EXT-X-MEDIA-SEQUENCE',
+      value: 0
+    },
+    Discontinuity: {
+      tag: '#EXT-X-DISCONTINUITY-SEQUENCE',
       value: 0
     },
     Extra: []
@@ -91,12 +97,20 @@ getHeaderObjects = function(fileContent) {
       header.MediaSequence.value = lines[i].substr(indexOfColon + 1,lines[i].length-indexOfColon);
       continue;
     }
-    //Todo: Add Discontinuity Sequence
+    if (lines[i].indexOf('#EXT-X-DISCONTINUITY-SEQUENCE:') === 0) {
+      header.Discontinuity.tag = '#EXT-X-DISCONTINUITY-SEQUENCE';
+      header.Discontinuity.value = lines[i].substr(indexOfColon + 1,lines[i].length-indexOfColon);
+      continue;
+    }
 
     if (lines[i].indexOf('#EXT-X-TARGETDURATION') === 0) {
       header.TargetDuration.tag = '#EXT-X-TARGETDURATION';
       header.TargetDuration.value = lines[i].substr(indexOfColon + 1,lines[i].length-indexOfColon);
       continue;
+    }
+
+    if(lines[i].toLowerCase().indexOf('.aac') > -1) {
+      break;
     }
 
     if (lines[i].toLowerCase().indexOf('.ts')>-1) {
@@ -114,51 +128,75 @@ getHeaderObjects = function(fileContent) {
   return header;
 };
 
+getSegmentHeader = function(lines, index) {
+  var i,
+    header='',
+    byterange='',
+    segment;
+  for(i=(index-1);i>0;i--) {
+    //Search backwards from index to get all header lines
+    if (lines[i].indexOf('EXTINF')>-1) {
+      header=lines[i];
+    } else if (lines[i].indexOf('EXT-X-BYTERANGE') > -1) {
+      byterange=lines[i];
+    } else
+    {
+      break;
+    }
+  }
+  segment = {
+    tsfile: lines[index]
+  };
+  if (byterange!='') {
+    segment.byterange=byterange;
+  }
+  if (header!='') {
+    segment.header=header;
+  }
+  return segment;
+};
+
 getResources = function(fileContent, request) {
-  var lines = fileContent.split('\n');
-  var header;
-  var file;
-  var resource = [];
-  var redirectFile;
-  var ext;
-  var arr;
-  var reqpathmod;
-  var prepend_redirectFile = '';
-  var i, j;
+  var lines = fileContent.split('\n'),
+    header,
+    file,
+    resource = [],
+    segment,
+    redirectFile,
+    ext,
+    arr,
+    reqpathmod,
+    prepend_redirectFile = '',
+    i,
+    j;
   for (i = 0;i < lines.length;i++) {
     header = null;
     file = null;
-    if (lines[i].toLowerCase().indexOf('.ts') > 0) {
+    if ((lines[i].toLowerCase().indexOf('.ts') > 0) || (lines[i].toLowerCase().indexOf('.aac')) > 0) {
+      segment=getSegmentHeader(lines, i);
+
       file = lines[i];
-      if (lines[i-1].indexOf('#EXT')>-1) {
-        header = lines[i-1];
-        if (file.indexOf('http')>-1) {
-          arr = file.split('.');
-          if (arr.length>1) {
-            ext = arr[arr.length-1];
-          }
-          reqpathmod = request.path.substr(0, request.path.lastIndexOf('/') + 1);
-          debuglog(reqpathmod);
-          debuglog('request path: ' + request.path);
-          redirectFile = 'redirect' + reqpathmod + redirectCount + '.' + ext;
-          redirectCount++;
-          redirect[redirectFile] = file;
-          debuglog('save redirect: ' + redirectFile + ' - ' + file);
-          for(j = 0;j<reqpathmod.split('/').length - 1;j++) {
-            prepend_redirectFile = prepend_redirectFile + '../';
-          }
-          file = prepend_redirectFile + redirectFile;
-          prepend_redirectFile = '';
-          debuglog('file: ' + file);
+      if (file.indexOf('http')>-1) {
+        arr = file.split('.');
+        if (arr.length > 1) {
+          ext = arr[arr.length - 1];
         }
-        resource.push(
-          {header: header,
-            tsfile: file}
-        );
+        reqpathmod = request.path.substr(0, request.path.lastIndexOf('/') + 1);
+        debuglog(reqpathmod);
+        debuglog('request path: ' + request.path);
+        redirectFile = 'redirect' + reqpathmod + redirectCount + '.' + ext;
+        redirectCount++;
+        redirect[redirectFile] = file;
+        debuglog('save redirect: ' + redirectFile + ' - ' + file);
+        for (j = 0; j < reqpathmod.split('/').length - 1; j++) {
+          prepend_redirectFile = prepend_redirectFile + '../';
+        }
+        file = prepend_redirectFile + redirectFile;
+        prepend_redirectFile = '';
+        debuglog('file: ' + file);
+        segment.tsfile=file;
       }
-      else {
-        resource.push({tsfile: file});
-      }
+      resource.push(segment);
     }
   }
   return resource;
@@ -205,6 +243,9 @@ extractHeader = function(header, event) {
   if (header.MediaSequence) {
     lines.push(header.MediaSequence.tag + ':' + event.dropped);
   }
+  if (header.Discontinuity) {
+    lines.push(header.Discontinuity.tag + ':' + event.discontinuity);
+  }
   if (header.Extra) {
     for(var i = 0;i<header.Extra.length;i++) {
       lines.push(header.Extra[i]);
@@ -222,26 +263,39 @@ extractResourceWindow = function(mfest,duration,event) {
   var lines;
   var i;
   startposition = Math.floor((duration*0.001)/event.rate);
+  debuglog('start before mod ' + startposition);
+  debuglog('event start '+event.start);
+  event.discontinuity=Math.floor(startposition/resource.length);
+  event.dropped=startposition;
+  if (event.dropped<0) {
+    event.dropped=0;
+  }
   startposition = startposition%resource.length;
+
   //startposition = startposition - (startposition % options.step);
   if (event.lastStartPosition<startposition) {
-    event.dropped++;
     debuglog('dropped: ' + event.dropped);
   }
   endposition = startposition + event.window-1;
+
   if (endposition >= resource.length) {
     debuglog('endposition before mod: ' + endposition);
     overflow = endposition-(resource.length-1);
+
     endposition = resource.length-1;
   }
   debuglog('startposition: ' + startposition);
   debuglog('endposition: ' + endposition);
   debuglog('overflow: ' + overflow);
   debuglog('resource length: ' + resource.length);
+  debuglog('rate: ' + event.rate);
   lines=extractHeader(header, event);
   for(i = startposition;i <= endposition;i++) {
     if (resource[i].header) {
       lines.push(resource[i].header);
+    }
+    if (resource[i].byterange) {
+      lines.push(resource[i].byterange);
     }
     if (resource[i].tsfile) {
       lines.push(resource[i].tsfile);
@@ -252,6 +306,9 @@ extractResourceWindow = function(mfest,duration,event) {
     for(i = 0;i<overflow;i++) {
       if (resource[i].header) {
         lines.push(resource[i].header);
+      }
+      if (resource[i].byterange) {
+        lines.push(resource[i].byterange);
       }
       if (resource[i].tsfile) {
         lines.push(resource[i].tsfile);
@@ -300,7 +357,7 @@ filterPlaylist = function(playlist, time, options) {
 
 
   startposition = options.init+Math.floor(temptime / options.rate);
-
+  options.dropped=startposition;
   debuglog('init: ' + options.init);
   debuglog('time * 0.001 = ' + temptime);
   debuglog('options.rate: ' + options.rate);
@@ -312,7 +369,6 @@ filterPlaylist = function(playlist, time, options) {
   if (startposition<options.init) startposition = options.init+1;
   debuglog('startposition' + startposition + '%' + options.step + ' = ' + (startposition%options.step));
   if ((startposition%options.step) == 0) {
-    options.dropped++;
     debuglog('dropped: ' + options.dropped);
   }
   debuglog('((startposition' + startposition + '-event.init' + options.init +
@@ -335,6 +391,7 @@ filterPlaylist = function(playlist, time, options) {
   if (overflow>0) {
     debuglog('overflow: ' + overflow);
     filteredLines[filteredLines.length-1] += '\n#EXT-X-DISCONTINUITY';
+    event.discontinuity++;
     debuglog(filteredLines[filteredLines.length-1]);
     filteredLines = filteredLines.concat(lines.slice(options.init, options.init + overflow));
     overflow = 0;
@@ -357,7 +414,7 @@ ui = function(request, response) {
           button.replace('errorcode', 'tsnotfound').replace('errortext','ts404') +
           button.replace('errorcode', 'manifestnotfound').replace('errortext','manifest404') + '</tr>\n';
       }
-      if (key.indexOf('.ts') > -1) {
+      if ((key.indexOf('.ts') > -1) || (key.indexOf('.aac') > -1)) {
         resources += '<tr><td>' + key + '</td></tr>';
       }
     }
@@ -413,23 +470,57 @@ stopAllStreams = function() {
   }
 };
 
+var parseQueryString = function( queryString ) {
+  var params = {}, queries, temp, i, l;
+
+  // Split into key/value pairs
+  queries = queryString.split("&amp;");
+
+  // Convert the array of strings into an object
+  for ( i = 0, l = queries.length; i < l; i++ ) {
+    temp = queries[i].split('=');
+    params[temp[0]] = temp[1];
+  }
+
+  return params;
+};
+
 //Start each rendition at the same time
 master = function(request, response) {
-  var renditions = [], result, lines, i;
+  var renditions = [],
+    result,
+    lines,
+    i,
+    uriIndex,
+    line,
+    currentRendition,
+    currentPath,
+    currentQuery,
+    urlarr,
+    strm;
   console.log('fetch master: ' + request.path);
   fs.readFile(path.join(__dirname, 'master', request.path), function(error, data) {
     if (error) {
       return response.send(404, error);
     }
 
-    //Check for reset request
-
-
     result = data.toString();
     lines = result.split('\n');
 
     for(i = 0;i<lines.length;i++) {
-      if (lines[i].indexOf('.m3u8')>-1) {
+      if (lines[i].indexOf('EXT-X-MEDIA') > -1) {
+        if (lines[i].indexOf('TYPE=AUDIO') > -1) {
+          uriIndex = lines[i].indexOf('URI=');
+          if (uriIndex > -1) {
+            line=trimCharacters(lines[i].substr(uriIndex+5), ['\'', '/', '.']).replace(/['"]+/g, '');
+            renditions.push(line);
+          }
+        }
+      }
+      else if (lines[i].indexOf('EXT') > -1) {
+        continue;
+      }
+      else if (lines[i].indexOf('.m3u8')>-1) {
         renditions.push(trimCharacters(lines[i], ['.','/']));
       }
     }
@@ -438,11 +529,28 @@ master = function(request, response) {
       if (request.query.resetStream==1) {
         resetLiveStream(renditions[i]);
       }
-      getStream(renditions[i]);
+      
+      //Ensure stream starts simultaneously with other renditions
+      currentRendition=renditions[i];
+      urlarr=currentRendition.split('?');
+      currentPath=urlarr[0];
+      if (urlarr[1]) {
+        currentQuery=parseQueryString(urlarr[1]);
+        strm=extend(getStream(currentPath), currentQuery);
+        console.log('start rendition stream: ' + currentPath + ' start: ' + strm.start);
+        strm=extend(getStream(renditions[i]), currentQuery);
+        console.log('start rendition stream: ' + renditions[i] + ' start: ' + strm.start);
+
+      }
+      else {
+        console.log('start rendition stream: ' + renditions[i]);
+        strm=getStream(renditions[i]);
+        console.log('start rendition stream: ' + renditions[i] + ' start: ' + strm.start);
+      }
+
       if (request.query.stopStream==1) {
         stopLiveStream(renditions[i]);
       }
-      console.log('start rendition stream: ' + renditions[i]);
     }
 
     if (request.query.resetStream==2) {
@@ -648,7 +756,7 @@ live = function(request, response) {
       event.resetStream = 0;
       stopAllStreams();
     }
-    
+
     if (event.tsnotfound>0) {
       //Pick a future .ts file to inject 404
       tsstreampath = manifest[streampath].resources[event.lastStartPosition + event.window + 1].tsfile;
