@@ -139,8 +139,11 @@ getSegmentHeader = function(lines, index) {
       header=lines[i];
     } else if (lines[i].indexOf('EXT-X-BYTERANGE') > -1) {
       byterange=lines[i];
-    } else
-    {
+    } else if (lines[i].indexOf('EXT-X-CUE') > -1) {
+      header = lines[i] + '\n' + header;
+    } else if(lines[i].indexOf('EXT-X-DISCONTINUITY') > -1 && lines[i].indexOf('EXT-X-DISCONTINUITY-SEQUENCE') === -1) {
+      header = lines[i] + '\n' + header;
+    } else {
       break;
     }
   }
@@ -529,7 +532,7 @@ master = function(request, response) {
       if (request.query.resetStream==1) {
         resetLiveStream(renditions[i]);
       }
-      
+
       //Ensure stream starts simultaneously with other renditions
       currentRendition=renditions[i];
       urlarr=currentRendition.split('?');

@@ -5,12 +5,16 @@
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence0.ts
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence1.ts
+#EXT-X-CUE-OUT:30
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence2.ts
+#EXT-X-CUE-OUT-CONT:10/30
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence3.ts
+#EXT-X-CUE-OUT-CONT:20/30
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence4.ts
+#EXT-X-CUE-IN
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence5.ts
 #EXTINF:10, no desc
@@ -23,16 +27,22 @@ http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence8.
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence9.ts
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence10.ts
+#EXT-X-CUE-OUT:60
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence11.ts
+#EXT-X-CUE-OUT-CONT:10/60
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence12.ts
+#EXT-X-CUE-OUT-CONT:20/60
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence13.ts
+#EXT-X-CUE-OUT-CONT:30/60
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence14.ts
+#EXT-X-CUE-OUT-CONT:40/60
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence15.ts
+#EXT-X-CUE-IN
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence16.ts
 #EXTINF:10, no desc
@@ -53,10 +63,13 @@ http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence23
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence24.ts
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence25.ts
+#EXT-X-CUE-OUT-CONT:10/30
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence26.ts
+#EXT-X-CUE-OUT-CONT:20/30
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence27.ts
+#EXT-X-CUE-IN
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence28.ts
 #EXTINF:10, no desc
@@ -69,30 +82,39 @@ http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence31
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence32.ts
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence33.ts
+#EXT-X-CUE-OUT:20
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence34.ts
+#EXT-X-CUE-OUT-CONT:10/20
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence35.ts
+#EXT-X-CUE-IN
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence36.ts
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence37.ts
+#EXT-X-CUE-OUT:10
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence38.ts
+#EXT-X-CUE-IN
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence39.ts
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence40.ts
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence41.ts
+#EXT-X-CUE-OUT:30
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence42.ts
+#EXT-X-CUE-OUT-CONT:10/30
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence43.ts
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence44.ts
+#EXT-X-CUE-OUT-CONT:20/30
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence45.ts
+#EXT-X-CUE-IN
 #EXTINF:10, no desc
 http://solutions.brightcove.com/jwhisenant/hls/apple/bipbop/gear3/fileSequence46.ts
 #EXTINF:10, no desc
