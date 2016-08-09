@@ -60,6 +60,18 @@ test('getResources: Get resource file data into object', function(t) {
 test('getResources: Get redirected resource file data', function(t) {
   var resourceObject, i;
   var request = {path: '/apple/gear4/prog_index.m3u8'};
+  var expectedHeaders = [
+    '#EXTINF:10, no desc',
+    '#EXTINF:10, no desc',
+    '#EXT-X-CUE-OUT:30\n#EXTINF:10, no desc',
+    '#EXT-X-CUE-OUT-CONT:10/30\n#EXTINF:10, no desc',
+    '#EXT-X-CUE-OUT-CONT:20/30\n#EXTINF:10, no desc',
+    '#EXT-X-CUE-IN\n#EXTINF:10, no desc',
+    '#EXTINF:10, no desc',
+    '#EXTINF:10, no desc',
+    '#EXTINF:10, no desc',
+    '#EXTINF:10, no desc'
+  ];
   fs.readFile('./data/apple/gear4/prog_index.m3u8', function (error, data) {
     if (error) {
       throw error;
@@ -69,7 +81,7 @@ test('getResources: Get redirected resource file data', function(t) {
     for(i=0;i<10;i++) {
       t.equal(resourceObject[i].tsfile, '../../../redirect/apple/gear4/' + i + '.ts',
         'directed resource file at index ' + i);
-      t.equal(resourceObject[i].header, '#EXTINF:10, no desc',
+      t.equal(resourceObject[i].header, expectedHeaders[i],
         'resource header at index ' + i);
     }
   });
@@ -106,14 +118,14 @@ test('extractResourceWindow: Get live resource window', function(t) {
       manifestnotfound: 0
     };
     result=livehls.extractResourceWindow(manifest, duration, event);
-    t.equal(result[5], manifest.resources[0].tsfile, 'Match start of resource');
+    t.equal(result[6], manifest.resources[0].tsfile, 'Match start of resource');
     duration=10000; //10 seconds in the future
     result=livehls.extractResourceWindow(manifest, duration, event);
-    t.equal(result[5], manifest.resources[1].tsfile,
+    t.equal(result[6], manifest.resources[1].tsfile,
       'Match start of resource after 10 second duration');
     duration=60000; //60 seconds in the future
     result=livehls.extractResourceWindow(manifest, duration, event);
-    t.equal(result[5], manifest.resources[6].tsfile,
+    t.equal(result[6], manifest.resources[6].tsfile,
       'Match start of resource  after 60 second duration');
   });
 
