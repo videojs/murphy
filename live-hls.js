@@ -9,8 +9,8 @@ var express = require('express');
 var streams = {};
 var debug = 0;
 var defaults = {
-  // seconds per resource
-  rate: 10,
+  // seconds per resource - defaults later
+  // rate: 10,
   // lines to initially return (This is obsolete)
   init: 4,
   // number of ts files in the sliding window
@@ -790,6 +790,8 @@ live = function(request, response) {
         return response;
       }
     }
+
+    event.rate = event.rate ? event.rate : manifestHeader.TargetDuration.value;
 
     result=createManifest(manifest[streampath], duration, event);
 
