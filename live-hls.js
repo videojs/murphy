@@ -311,16 +311,21 @@ extractResourceWindow = function(mfest,duration,event) {
     }
   }
   if (overflow>0) {
-    lines.push('#EXT-X-DISCONTINUITY');
     for(i = 0;i<overflow;i++) {
-      if (resource[i].header) {
-        lines.push(resource[i].header);
+      var referencedResource = i % resource.length;
+
+      if (referencedResource === 0) {
+        lines.push('#EXT-X-DISCONTINUITY');
       }
-      if (resource[i].byterange) {
-        lines.push(resource[i].byterange);
+
+      if (resource[referencedResource].header) {
+        lines.push(resource[referencedResource].header);
       }
-      if (resource[i].tsfile) {
-        lines.push(resource[i].tsfile);
+      if (resource[referencedResource].byterange) {
+        lines.push(resource[referencedResource].byterange);
+      }
+      if (resource[referencedResource].tsfile) {
+        lines.push(resource[referencedResource].tsfile);
       }
     }
   }
