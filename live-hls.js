@@ -113,6 +113,10 @@ getHeaderObjects = function(fileContent) {
       break;
     }
 
+    if(lines[i].toLowerCase().indexOf('.webvtt') > -1) {
+      break;
+    }
+
     if (lines[i].toLowerCase().indexOf('.ts')>-1) {
       //break out because we're no longer in header
       break;
@@ -175,7 +179,9 @@ getResources = function(fileContent, request) {
   for (i = 0;i < lines.length;i++) {
     header = null;
     file = null;
-    if ((lines[i].toLowerCase().indexOf('.ts') > 0) || (lines[i].toLowerCase().indexOf('.aac')) > 0) {
+    if ((lines[i].toLowerCase().indexOf('.ts') > 0) ||
+        (lines[i].toLowerCase().indexOf('.aac') > 0) ||
+        (lines[i].toLowerCase().indexOf('.webvtt') > 0)) {
       segment=getSegmentHeader(lines, i);
 
       file = lines[i];
@@ -417,7 +423,9 @@ ui = function(request, response) {
           button.replace('errorcode', 'tsnotfound').replace('errortext','ts404') +
           button.replace('errorcode', 'manifestnotfound').replace('errortext','manifest404') + '</tr>\n';
       }
-      if ((key.indexOf('.ts') > -1) || (key.indexOf('.aac') > -1)) {
+      if (key.indexOf('.ts') > -1 ||
+          key.indexOf('.aac') > -1 ||
+          key.indexOf('.webvtt') > -1) {
         resources += '<tr><td>' + key + '</td></tr>';
       }
     }
@@ -512,7 +520,8 @@ master = function(request, response) {
 
     for(i = 0;i<lines.length;i++) {
       if (lines[i].indexOf('EXT-X-MEDIA') > -1) {
-        if (lines[i].indexOf('TYPE=AUDIO') > -1) {
+        if (lines[i].indexOf('TYPE=AUDIO') > -1 ||
+            lines[i].indexOf('TYPE=SUBTITLES') > -1) {
           uriIndex = lines[i].indexOf('URI=');
           if (uriIndex > -1) {
             line=trimCharacters(lines[i].substr(uriIndex+5), ['\'', '/', '.']).replace(/['"]+/g, '');
