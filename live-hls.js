@@ -9,7 +9,7 @@ var express = require('express');
 var streams = {};
 var debug = 0;
 var defaults = {
-  // seconds per resource, defaulted to target duration if no override
+  // seconds per resource, defaults to target duration if no override
   // rate: 10,
   // lines to initially return (This is obsolete)
   init: 4,
