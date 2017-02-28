@@ -9,8 +9,8 @@ var express = require('express');
 var streams = {};
 var debug = 0;
 var defaults = {
-  // seconds per resource
-  rate: 10,
+  // seconds per resource, defaults to target duration if no override
+  // rate: 10,
   // lines to initially return (This is obsolete)
   init: 4,
   // number of ts files in the sliding window
@@ -113,6 +113,10 @@ getHeaderObjects = function(fileContent) {
       break;
     }
 
+    if(lines[i].toLowerCase().indexOf('.webvtt') > -1) {
+      break;
+    }
+
     if (lines[i].toLowerCase().indexOf('.ts')>-1) {
       //break out because we're no longer in header
       break;
@@ -175,7 +179,9 @@ getResources = function(fileContent, request) {
   for (i = 0;i < lines.length;i++) {
     header = null;
     file = null;
-    if ((lines[i].toLowerCase().indexOf('.ts') > 0) || (lines[i].toLowerCase().indexOf('.aac')) > 0) {
+    if ((lines[i].toLowerCase().indexOf('.ts') > 0) ||
+        (lines[i].toLowerCase().indexOf('.aac') > 0) ||
+        (lines[i].toLowerCase().indexOf('.webvtt') > 0)) {
       segment=getSegmentHeader(lines, i);
 
       file = lines[i];
@@ -305,16 +311,21 @@ extractResourceWindow = function(mfest,duration,event) {
     }
   }
   if (overflow>0) {
-    lines.push('#EXT-X-DISCONTINUITY');
     for(i = 0;i<overflow;i++) {
-      if (resource[i].header) {
-        lines.push(resource[i].header);
+      var referencedResource = i % resource.length;
+
+      if (referencedResource === 0) {
+        lines.push('#EXT-X-DISCONTINUITY');
       }
-      if (resource[i].byterange) {
-        lines.push(resource[i].byterange);
+
+      if (resource[referencedResource].header) {
+        lines.push(resource[referencedResource].header);
       }
-      if (resource[i].tsfile) {
-        lines.push(resource[i].tsfile);
+      if (resource[referencedResource].byterange) {
+        lines.push(resource[referencedResource].byterange);
+      }
+      if (resource[referencedResource].tsfile) {
+        lines.push(resource[referencedResource].tsfile);
       }
     }
   }
@@ -417,7 +428,9 @@ ui = function(request, response) {
           button.replace('errorcode', 'tsnotfound').replace('errortext','ts404') +
           button.replace('errorcode', 'manifestnotfound').replace('errortext','manifest404') + '</tr>\n';
       }
-      if ((key.indexOf('.ts') > -1) || (key.indexOf('.aac') > -1)) {
+      if (key.indexOf('.ts') > -1 ||
+          key.indexOf('.aac') > -1 ||
+          key.indexOf('.webvtt') > -1) {
         resources += '<tr><td>' + key + '</td></tr>';
       }
     }
@@ -512,7 +525,8 @@ master = function(request, response) {
 
     for(i = 0;i<lines.length;i++) {
       if (lines[i].indexOf('EXT-X-MEDIA') > -1) {
-        if (lines[i].indexOf('TYPE=AUDIO') > -1) {
+        if (lines[i].indexOf('TYPE=AUDIO') > -1 ||
+            lines[i].indexOf('TYPE=SUBTITLES') > -1) {
           uriIndex = lines[i].indexOf('URI=');
           if (uriIndex > -1) {
             line=trimCharacters(lines[i].substr(uriIndex+5), ['\'', '/', '.']).replace(/['"]+/g, '');
@@ -781,6 +795,8 @@ live = function(request, response) {
         return response;
       }
     }
+
+    event.rate = event.rate ? event.rate : manifestHeader.TargetDuration.value;
 
     result=createManifest(manifest[streampath], duration, event);
 
