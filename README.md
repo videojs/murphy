@@ -1,4 +1,5 @@
-#NOTICE:
+# NOTICE
+
 The main murphy repository is now hosted at the following location: https://github.com/videojs/murphy
 
 # murphy
