@@ -19,11 +19,11 @@ if (Number.isFinite(process.argv[2])) {
 }
 
 const throttleConfig = fs.readFileSync(networkTrace).toString()
-    .split('\n')
-    .map((line) =>
-  line.split(' ')
-    .slice(-2)
-    .map(Number));
+                         .split('\n')
+                         .map((line) =>
+                            line.split(' ')
+                              .slice(-2)
+                              .map(Number));
 
 // Just trust that this code works...
 const getBytesForTimespan = (start, end) => {
@@ -66,7 +66,7 @@ const writeSlowly = (req, res, data) => {
   req.on('close', () => {
     // request closed unexpectedly
     ended = true;
-});
+  });
 
   setTimeout(function writer(offset) {
     if (offset === null) {
