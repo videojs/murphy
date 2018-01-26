@@ -5,9 +5,11 @@ var fs = require('fs');
 var extend = require('lodash').extend;
 var path = require('path');
 var url = require('url');
+var querystring = require('querystring');
 var express = require('express');
+var requestModule = require('request');
 var streams = {};
-var debug = 0;
+var debug = 1;
 var defaults = {
   // seconds per resource, defaults to target duration if no override
   // rate: 10,
@@ -53,6 +55,13 @@ var master;
 var processErrors;
 var trimCharacters;
 var ui;
+var localDataExists = fs.existsSync(path.join(__dirname, 'data'));
+var localMasterExists = fs.existsSync(path.join(__dirname, 'master'));
+var rawGithub = 'https://raw.githubusercontent.com/videojs/murphy/master/';
+
+var getGithubUrl = function(urlpath) {
+  return url.resolve(rawGithub, path.join(path.dirname(urlpath), encodeURIComponent(path.basename(urlpath))));
+};
 
 debuglog = function(str) {
   if (debug == 1) {
@@ -514,8 +523,8 @@ master = function(request, response) {
     currentQuery,
     urlarr,
     strm;
-  console.log('fetch master: ' + request.path);
-  fs.readFile(path.join(__dirname, 'master', request.path), function(error, data) {
+
+  var callback = function(error, data) {
     if (error) {
       return response.send(404, error);
     }
@@ -583,7 +592,20 @@ master = function(request, response) {
     response.write(result);
     response.status(200);
     response.end();
-  });
+  };
+
+  console.log('fetch master: ' + request.path);
+  if (localMasterExists) {
+    fs.readFile(path.join(__dirname, 'master', request.path), callback);
+  } else {
+    var githubUrl = getGithubUrl(path.join('master', request.path));
+
+    debuglog('Getting data from github ' + githubUrl);
+
+    requestModule(githubUrl, function(error, response, body) {
+      callback(error, body);
+    });
+  }
   return this;
 };
 
@@ -650,12 +672,22 @@ dataRequest = function(request, response) {
     console.log('errors processed tsnotfound=' + event.tsnotfound);
     return response;
   }
-  debuglog(path.join(__dirname, 'data', request.path));
 
-  var fileStream = fs.createReadStream(path.join(__dirname, pathname));
-  fileStream.on('open', function () {
-    fileStream.pipe(response);
-  });
+  if (localDataExists) {
+    var fileStream = fs.createReadStream(path.join(__dirname, pathname));
+    debuglog(path.join(__dirname, 'data', pathname));
+
+    fileStream.on('open', function () {
+      fileStream.pipe(response);
+    });
+  } else {
+    var githubUrl = getGithubUrl(pathname);
+
+    debuglog(githubUrl);
+
+    requestModule(githubUrl)
+      .pipe(response);
+  }
 };
 
 processErrors = function(request, response, event) {

@@ -12,8 +12,17 @@
     "express": "~3.3.4",
     "express3-handlebars": "~0.5.0",
     "handlebars": "~1.0.12",
-    "lodash": "~2.4"
+    "lodash": "~2.4",
+    "request": "^2.83.0"
   },
+
+  "files": [
+    "live-hls.js",
+    "murphy",
+    "test",
+    "ui/",
+    "README.md"
+  ],
   "devDependencies": {
     "tape": "^4.4.0",
     "node-mocks-http": "^1.5.1"
