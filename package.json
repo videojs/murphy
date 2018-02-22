@@ -1,5 +1,5 @@
 {
-  "name": "murphy",
+  "name": "@videojs/murphy",
   "description": "Live stream simulator with error injection.",
   "version": "0.0.2",
   "author": "mroca",

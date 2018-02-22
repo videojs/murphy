@@ -1,6 +1,10 @@
 # murphy
 Proactively making Murphy's law a reality...
 
+```sh
+npm install @videojs/murphy
+```
+
 ## How to use
 Start the server using 'npm start'
 Run the unit tests using 'npm test'
