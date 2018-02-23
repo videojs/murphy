@@ -109,11 +109,15 @@ getHeaderObjects = function(fileContent) {
       continue;
     }
 
-    if(lines[i].toLowerCase().indexOf('.aac') > -1) {
+    if (lines[i].toLowerCase().indexOf('.aac') > -1) {
       break;
     }
 
-    if(lines[i].toLowerCase().indexOf('.webvtt') > -1) {
+    if (lines[i].toLowerCase().indexOf('.webvtt') > -1) {
+      break;
+    }
+
+    if (lines[i].toLowerCase().indexOf('.vtt') > -1) {
       break;
     }
 
@@ -123,6 +127,10 @@ getHeaderObjects = function(fileContent) {
     }
     if (lines[i].indexOf('#EXTINF')>-1) {
       //break out because we're no longer in header
+      break;
+    }
+    if (lines[i].indexOf('#EXT-X-MAP') > -1) {
+      // break out because we're no longer in header
       break;
     }
     if (indexOfColon>0) {
@@ -146,6 +154,8 @@ getSegmentHeader = function(lines, index) {
     } else if (lines[i].indexOf('EXT-X-CUE') > -1) {
       header = lines[i] + '\n' + header;
     } else if(lines[i].indexOf('EXT-X-DISCONTINUITY') > -1 && lines[i].indexOf('EXT-X-DISCONTINUITY-SEQUENCE') === -1) {
+      header = lines[i] + '\n' + header;
+    } else if (lines[i].indexOf('EXT-X-MAP') > -1) {
       header = lines[i] + '\n' + header;
     } else {
       break;
@@ -181,6 +191,7 @@ getResources = function(fileContent, request) {
     file = null;
     if ((lines[i].toLowerCase().indexOf('.ts') > 0) ||
         (lines[i].toLowerCase().indexOf('.aac') > 0) ||
+        (lines[i].toLowerCase().indexOf('.vtt') > 0) ||
         (lines[i].toLowerCase().indexOf('.webvtt') > 0)) {
       segment=getSegmentHeader(lines, i);
 
@@ -430,6 +441,7 @@ ui = function(request, response) {
       }
       if (key.indexOf('.ts') > -1 ||
           key.indexOf('.aac') > -1 ||
+          key.indexOf('.vtt') > -1 ||
           key.indexOf('.webvtt') > -1) {
         resources += '<tr><td>' + key + '</td></tr>';
       }
