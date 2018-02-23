@@ -1,0 +1,28 @@
+#EXTM3U
+#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subtitle",NAME="#1 Fre",DEFAULT=NO,FORCED=NO,LANGUAGE="fre",URI="../../live/maat/planet/subtitles/planete_interdite_subtitle3_fre_vtt.m3u8"
+#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subtitle",NAME="#2 Eng",DEFAULT=NO,FORCED=NO,LANGUAGE="eng",URI="../../live/maat/planet/subtitles/planete_interdite_subtitle4_eng_vtt.m3u8"
+#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subtitle",NAME="#3 Eng",DEFAULT=NO,FORCED=NO,LANGUAGE="eng",URI="../../live/maat/planet/subtitles/planete_interdite_subtitle5_eng_vtt.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="low",NAME="#1 Fre",DEFAULT=YES,AUTOSELECT=YES,LANGUAGE="fre",URI="../../live/maat/planet/low/planete_interdite_228_h264_144p_audio1_fre.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="low",NAME="#2 Eng",DEFAULT=NO,AUTOSELECT=YES,LANGUAGE="eng",URI="../../live/maat/planet/low/planete_interdite_228_h264_144p_audio2_eng.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="medium",NAME="#1 Fre",DEFAULT=YES,AUTOSELECT=YES,LANGUAGE="fre",URI="../../live/maat/planet/medium/planete_interdite_500_h264_240p_audio1_fre.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="medium",NAME="#2 Eng",DEFAULT=NO,AUTOSELECT=YES,LANGUAGE="eng",URI="../../live/maat/planet/medium/planete_interdite_500_h264_240p_audio2_eng.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="high",NAME="#1 Fre",DEFAULT=YES,AUTOSELECT=YES,LANGUAGE="fre",URI="../../live/maat/planet/high/planete_interdite_1228_q264_360p_audio1_fre.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="high",NAME="#2 Eng",DEFAULT=NO,AUTOSELECT=YES,LANGUAGE="eng",URI="../../live/maat/planet/high/planete_interdite_1228_q264_360p_audio2_eng.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="veryhigh",NAME="#1 Fre",DEFAULT=YES,AUTOSELECT=YES,LANGUAGE="fre",URI="../../live/maat/planet/veryhigh/planete_interdite_2080_q264_480p_audio1_fre.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="veryhigh",NAME="#2 Eng",DEFAULT=NO,AUTOSELECT=YES,LANGUAGE="eng",URI="../../live/maat/planet/veryhigh/planete_interdite_2080_q264_480p_audio2_eng.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="hdready",NAME="#1 Fre",DEFAULT=YES,AUTOSELECT=YES,LANGUAGE="fre",URI="../../live/maat/planet/hdready/planete_interdite_4160_n264_720p_audio1_fre.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="hdready",NAME="#2 Eng",DEFAULT=NO,AUTOSELECT=YES,LANGUAGE="eng",URI="../../live/maat/planet/hdready/planete_interdite_4160_n264_720p_audio2_eng.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="fullhd",NAME="#1 Fre",DEFAULT=YES,AUTOSELECT=YES,LANGUAGE="fre",URI="../../live/maat/planet/fullhd/planete_interdite_8256_n264_1080p_audio1_fre.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="fullhd",NAME="#2 Eng",DEFAULT=NO,AUTOSELECT=YES,LANGUAGE="eng",URI="../../live/maat/planet/fullhd/planete_interdite_8256_n264_1080p_audio2_eng.m3u8"
+#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=314000,CODECS="avc1.66.30,mp4a.40.2",RESOLUTION=256x144,AUDIO="low",SUBTITLES="subtitle"
+../../live/maat/planet/low/planete_interdite_228_h264_144p.m3u8
+#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=638000,CODECS="avc1.66.30,mp4a.40.2",RESOLUTION=426x240,AUDIO="medium",SUBTITLES="subtitle"
+../../live/maat/planet/medium/planete_interdite_500_h264_240p.m3u8
+#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=1942000,CODECS="avc1.66.30,mp4a.40.2",RESOLUTION=640x360,AUDIO="high",SUBTITLES="subtitle"
+../../live/maat/planet/high/planete_interdite_1228_q264_360p.m3u8
+#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=3274000,CODECS="avc1.66.30,mp4a.40.2",RESOLUTION=854x480,AUDIO="veryhigh",SUBTITLES="subtitle"
+../../live/maat/planet/veryhigh/planete_interdite_2080_q264_480p.m3u8
+#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=4814000,CODECS="avc1.4d001f,mp4a.40.2",RESOLUTION=1280x720,AUDIO="hdready",SUBTITLES="subtitle"
+../../live/maat/planet/hdready/planete_interdite_4160_n264_720p.m3u8
+#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=9501000,CODECS="avc1.640028,mp4a.40.2",RESOLUTION=1920x1080,AUDIO="fullhd",SUBTITLES="subtitle"
+../../live/maat/planet/fullhd/planete_interdite_8256_n264_1080p.m3u8

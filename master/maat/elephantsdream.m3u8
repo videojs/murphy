@@ -1,9 +1,20 @@
 #EXTM3U
 #EXT-X-VERSION:3
-#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",LANGUAGE="en",NAME="English",DEFAULT=YES,AUTOSELECT=YES,URI="../../live/maat/elephant/en/chunklist_w370587926_b160000_ao_slen_t64RW5nbGlzaA==.m3u8?rate=6"
-#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",LANGUAGE="sp",NAME="Spanish",DEFAULT=NO,AUTOSELECT=YES,URI="../../live/maat/elephant/sp/chunklist_w370587926_b160000_ao_slsp_t64U3BhbmlzaA==.m3u8?rate=6"
-#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",LANGUAGE="en",NAME="Commentary (eng)",DEFAULT=NO,AUTOSELECT=NO,URI="../../live/maat/elephant/com/chunklist_w370587926_b160000_ao_slen_t64Q29tbWVudGFyeSAoZW5nKQ==.m3u8?rate=6"
-#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=1427000,NAME="Main",CODECS="avc1.66.30",RESOLUTION=768x432,AUDIO="aac",SUBTITLES="subs"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac-low",LANGUAGE="en",NAME="English",DEFAULT=YES,AUTOSELECT=YES,URI="../../live/maat/elephant/448/en/chunklist_w370587926_b160000_ao_slen_t64RW5nbGlzaA==.m3u8?rate=6"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac-low",LANGUAGE="sp",NAME="Spanish",DEFAULT=NO,AUTOSELECT=YES,URI="../../live/maat/elephant/448/sp/chunklist_w370587926_b160000_ao_slsp_t64U3BhbmlzaA==.m3u8?rate=6"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac-low",LANGUAGE="en",NAME="Commentary (eng)",DEFAULT=NO,AUTOSELECT=NO,URI="../../live/maat/elephant/448/com/chunklist_w370587926_b160000_ao_slen_t64Q29tbWVudGFyeSAoZW5nKQ==.m3u8?rate=6"
+
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac-med",LANGUAGE="en",NAME="English",DEFAULT=YES,AUTOSELECT=YES,URI="../../live/maat/elephant/768/en/chunklist_w370587926_b160000_ao_slen_t64RW5nbGlzaA==.m3u8?rate=6"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac-med",LANGUAGE="sp",NAME="Spanish",DEFAULT=NO,AUTOSELECT=YES,URI="../../live/maat/elephant/768/sp/chunklist_w370587926_b160000_ao_slsp_t64U3BhbmlzaA==.m3u8?rate=6"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac-med",LANGUAGE="en",NAME="Commentary (eng)",DEFAULT=NO,AUTOSELECT=NO,URI="../../live/maat/elephant/768/com/chunklist_w370587926_b160000_ao_slen_t64Q29tbWVudGFyeSAoZW5nKQ==.m3u8?rate=6"
+
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac-high",LANGUAGE="en",NAME="English",DEFAULT=YES,AUTOSELECT=YES,URI="../../live/maat/elephant/1280/en/chunklist_w370587926_b160000_ao_slen_t64RW5nbGlzaA==.m3u8?rate=6"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac-high",LANGUAGE="sp",NAME="Spanish",DEFAULT=NO,AUTOSELECT=YES,URI="../../live/maat/elephant/1280/sp/chunklist_w370587926_b160000_ao_slsp_t64U3BhbmlzaA==.m3u8?rate=6"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac-high",LANGUAGE="en",NAME="Commentary (eng)",DEFAULT=NO,AUTOSELECT=NO,URI="../../live/maat/elephant/1280/com/chunklist_w370587926_b160000_ao_slen_t64Q29tbWVudGFyeSAoZW5nKQ==.m3u8?rate=6"
+
+#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=1427000,NAME="Main",CODECS="avc1.66.30",RESOLUTION=1280x720,AUDIO="aac-high"
+../../live/maat/elephant/1280/chunklist_w370587926_b2962000_vo_slen_t64TWFpbg==.m3u8?rate=6
+#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=1427000,NAME="Main",CODECS="avc1.66.30",RESOLUTION=768x432,AUDIO="aac-med"
 ../../live/maat/elephant/768/chunklist_w370587926_b1427000_vo_slen_t64TWFpbg==.m3u8?rate=6
-#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=688000,NAME="Main",CODECS="avc1.66.30",RESOLUTION=448x252,AUDIO="aac",SUBTITLES="subs"
+#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=688000,NAME="Main",CODECS="avc1.66.30",RESOLUTION=448x252,AUDIO="aac-low"
 ../../live/maat/elephant/448/chunklist_w370587926_b688000_vo_slen_t64TWFpbg==.m3u8?rate=6
