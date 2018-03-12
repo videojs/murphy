@@ -235,7 +235,7 @@ getResources = function(fileContent, request) {
 getInitialValue = function(allLines) {
   var i;
   for (i = 0;i<allLines.length;i++) {
-    if (allLines[i].indexOf('#EXT-X-DISCONTINUITY-SEQUENCE')>-1) {
+    if (allLines[i].indexOf('#EXT-X-PROGRAM-DATE-TIME')>-1) {
       return i;
     }
   }
@@ -391,7 +391,7 @@ filterPlaylist = function(manifest, playlist, time, options) {
   var overflow=0;
   var lines = playlist.split('\n');
 
-  options.init=getInitialValue(lines)+1;
+  options.init=getInitialValue(lines);
   // the number of the time-varying lines to be shown
   var temptime=(time*0.001);
   var programDateTime = lines[options.init];
