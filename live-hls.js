@@ -7,7 +7,7 @@ var path = require('path');
 var url = require('url');
 var express = require('express');
 var streams = {};
-var debug = 0;
+var debug = 1;
 var defaults = {
   // seconds per resource, defaults to target duration if no override
   // rate: 10,
@@ -79,6 +79,10 @@ getHeaderObjects = function(fileContent) {
       tag: '#EXT-X-DISCONTINUITY-SEQUENCE',
       value: 0
     },
+    ProgramDateTime: {
+      tag: '#EXT-X-PROGRAM-DATE-TIME',
+      value: 0
+    },
     Extra: []
   };
   for(var i = 0;i<lines.length;i++) {
@@ -106,6 +110,12 @@ getHeaderObjects = function(fileContent) {
     if (lines[i].indexOf('#EXT-X-TARGETDURATION') === 0) {
       header.TargetDuration.tag = '#EXT-X-TARGETDURATION';
       header.TargetDuration.value = lines[i].substr(indexOfColon + 1,lines[i].length-indexOfColon);
+      continue;
+    }
+
+    if (lines[i].indexOf('#EXT-X-PROGRAM-DATE-TIME') === 0) {
+      header.ProgramDateTime.tag = '#EXT-X-PROGRAM-DATE-TIME';
+      header.ProgramDateTime.value = lines[i].substr(indexOfColon + 1,lines[i].length-indexOfColon);
       continue;
     }
 
@@ -225,7 +235,7 @@ getResources = function(fileContent, request) {
 getInitialValue = function(allLines) {
   var i;
   for (i = 0;i<allLines.length;i++) {
-    if (allLines[i].indexOf('#EXTINF')>-1) {
+    if (allLines[i].indexOf('#EXT-X-DISCONTINUITY-SEQUENCE')>-1) {
       return i;
     }
   }
@@ -370,18 +380,25 @@ createManifest = function(mfest, duration, event) {
  * @return {string} the lines of the playlist that would be available
  * at the specified time
  */
-filterPlaylist = function(playlist, time, options) {
+
+filterPlaylist = function(manifest, playlist, time, options) {
+
   var startposition;
+  var filteredLines;
   var endposition;
-  var overflow = 0;
+  var header = manifest.header;
+  var resource = manifest.resources;
+  var overflow=0;
   var lines = playlist.split('\n');
 
-  options.init=getInitialValue(lines);
+  options.init=getInitialValue(lines)+1;
   // the number of the time-varying lines to be shown
   var temptime=(time*0.001);
+  var programDateTime = lines[options.init];
+  var programDateTimeString = programDateTime.substring(programDateTime.indexOf(':')+1);
+  var firstSegmentDate = new Date(programDateTimeString);
 
-
-  startposition = options.init+Math.floor(temptime / options.rate);
+  startposition = options.init;
   options.dropped=startposition;
   debuglog('init: ' + options.init);
   debuglog('time * 0.001 = ' + temptime);
@@ -390,8 +407,6 @@ filterPlaylist = function(playlist, time, options) {
   debuglog('startposition' + startposition + '==options.init' + options.init);
   debuglog(startposition == options.init);
 
-  startposition = startposition - (startposition % options.step);
-  if (startposition<options.init) startposition = options.init+1;
   debuglog('startposition' + startposition + '%' + options.step + ' = ' + (startposition%options.step));
   if ((startposition%options.step) == 0) {
     debuglog('dropped: ' + options.dropped);
@@ -399,42 +414,96 @@ filterPlaylist = function(playlist, time, options) {
   debuglog('((startposition' + startposition + '-event.init' + options.init +
     ') % (lines.length' + lines.length + '-event.init' + options.init + ')) + ' +
     'event.init'+options.init+' = ');
-  startposition = ((startposition-options.init) % (lines.length-options.init)) + options.init + 1;
 
+  endposition = startposition + temptime;
 
-  endposition = startposition + options.window;
   debuglog('lines.length: ' + lines.length);
   debuglog('startposition: ' + startposition);
   debuglog('endposition: ' + endposition);
 
-  var filteredLines = lines.slice(0, options.init);
   if (endposition>lines.length) {
     overflow = endposition-lines.length;
     debuglog('overflow: ' + overflow);
   }
-  filteredLines = filteredLines.concat(lines.slice(startposition, endposition));
-  if (overflow>0) {
-    debuglog('overflow: ' + overflow);
-    filteredLines[filteredLines.length-1] += '\n#EXT-X-DISCONTINUITY';
-    event.discontinuity++;
-    debuglog(filteredLines[filteredLines.length-1]);
-    filteredLines = filteredLines.concat(lines.slice(options.init, options.init + overflow));
-    overflow = 0;
+  if (filteredLines == undefined){
+    filteredLines = lines.slice(0, startposition+1);
+  }
+
+
+  for (i = 0;i < resource.length;i++) {
+    if (filteredLines.length<=endposition){
+      if (resource[i].header) {
+        if (i!=0){
+          var index =resource[i-1].header.substring(resource[i-1].header.indexOf('#EXTINF:'));
+          var segmentDuration = index.substring(index.indexOf(':')+1).slice(0,-1);
+          firstSegmentDate.setMilliseconds(firstSegmentDate.getMilliseconds() + parseFloat(segmentDuration));
+          filteredLines.push(header.ProgramDateTime.tag + ':' +  firstSegmentDate.toISOString());
+        }
+        filteredLines.push(resource[i].header);
+      }
+      if (resource[i].byterange) {
+        filteredLines.push(resource[i].byterange);
+        }
+      if (resource[i].tsfile) {
+        filteredLines.push(resource[i].tsfile);
+      }
+    }
+  }
+
+  debuglog(filteredLines[filteredLines.length-1]);
+
+  if (overflow>0){
+
+    for (i = 0;i<overflow;i++) {
+      var referencedResource = i % resource.length;
+
+      if (referencedResource === 0) {
+        filteredLines.push('#EXT-X-DISCONTINUITY');
+        event.discontinuity++;
+      }
+
+      if (resource[referencedResource].header) {
+        if (referencedResource==0){
+          var index =resource[resource.length-1].header.substring(resource[resource.length-1].header.indexOf('#EXTINF:'));
+          var segmentDuration = index.substring(index.indexOf(':')+1).slice(0,-1);
+        }
+        else{
+          var index =resource[referencedResource-1].header.substring(resource[referencedResource-1].header.indexOf('#EXTINF:'));
+          var segmentDuration = index.substring(index.indexOf(':')+1).slice(0,-1);
+        }
+        firstSegmentDate.setMilliseconds(firstSegmentDate.getMilliseconds() + parseFloat(segmentDuration));
+        filteredLines.push(header.ProgramDateTime.tag + ':' +  firstSegmentDate.toISOString());
+        filteredLines.push(resource[referencedResource].header);
+      }
+      if (resource[referencedResource].byterange) {
+        filteredLines.push(resource[referencedResource].byterange);
+      }
+      if (resource[referencedResource].tsfile) {
+        filteredLines.push(resource[referencedResource].tsfile);
+      }
+    }
   }
   options.counter++;
   return filteredLines.join('\n');
 };
 
 ui = function(request, response) {
-  var result, key, rows = '', resources='', button;
+
+  var result, key, rows = '', resources='', button, playType;
   fs.readFile(path.join(__dirname, 'ui', request.path), function (error, data) {
     if (error) {
       return response.send(404, error);
     }
     result = data.toString();
     for (key in streams) {
+      if(key.includes('event')){
+        playType='event';
+      }
+      else if(key.includes('live')){
+        playType='live';
+      }
       if (key.indexOf('.m3u8') >-1 ) {
-        button = '<td><button onclick=\"injectError(\'../'+key.replace('live', 'error')+'?errorcode=1\')\">errortext</button></td>';
+        button = '<td><button onclick=\"injectError(\'../'+key.replace(playType, 'error')+'?errorcode=1\')\">errortext</button></td>';
         rows += '<tr><td>' + key + '</td>'+
           button.replace('errorcode', 'tsnotfound').replace('errortext','ts404') +
           button.replace('errorcode', 'manifestnotfound').replace('errortext','manifest404') + '</tr>\n';
@@ -606,16 +675,68 @@ master = function(request, response) {
  */
 
 event = function(request, response) {
+
   fs.readFile(path.join(__dirname, 'data', request.path), function(error, data) {
-    var event, playlist, result;
+    var event, playlist, result, tsstreampath, stream;
     if (error) {
       return response.send(404, error);
     }
 
-    event = extend(getStream('event/' + request.path), request.params);
-
+    event = extend(getStream('event' + request.path), request.params);
     playlist = data.toString();
-    result = filterPlaylist(playlist,
+    if (manifest['event' + request.path] == undefined) {
+
+      playlist = data.toString();
+      manifestHeader = getHeaderObjects(playlist);
+      manifestResources = getResources(playlist, request);
+      manifest['event' + request.path] =
+      {
+        header: manifestHeader,
+        resources: manifestResources
+      };
+    }
+    if (event.resetStream==1) {
+      event.resetStream = 0;
+      resetLiveStream(streampath);
+    }
+    if (event.resetStream==2) {
+      event.resetStream = 0;
+      resetAllStreams();
+    }
+
+    if (event.stopStream==1) {
+      event.resetStream = 0;
+      stopLiveStream(streampath);
+    }
+
+    if (event.stopStream==2) {
+      event.resetStream = 0;
+      stopAllStreams();
+    }
+
+    if (event.tsnotfound>0) {
+      //Pick a future .ts file to inject 404
+      tsstreampath = manifest['event' + request.path].resources[event.lastStartPosition + event.window + 1].tsfile;
+      tsstreampath = trimCharacters(tsstreampath, ['/','.']);
+      console.log('Target for 404: ' + tsstreampath);
+      stream = getStream(tsstreampath);
+      //Pass error value to the ts stream
+      if (stream.tsnotfound) {
+        stream.tsnotfound++;
+      }
+      else {
+        stream.tsnotfound = 1;
+      }
+      event.tsnotfound--;
+    }
+    if (event.manifestnotfound>0) {
+      if (processErrors(request, response, event) == true) {
+        console.log('errors processed manifestnotfound=' + event.manifestnotfound);
+        return response;
+      }
+    }
+    event.rate = event.rate ? event.rate : manifestHeader.TargetDuration.value;
+    result = filterPlaylist( manifest['event' + request.path],playlist,
       Date.now() - event.start,
       event);
 
@@ -632,6 +753,7 @@ event = function(request, response) {
 };
 
 redirect = function(request, response) {
+
   var redirectKey;
   event = extend(getStream('redirect' + request.path), request.query);
   redirectKey = 'redirect' + request.path;
@@ -711,7 +833,17 @@ processErrors = function(request, response, event) {
  * Inject error
  */
 injectError = function(request, response) {
-  var streamname='live' + request.path;
+
+  var playType;
+  for (key in streams) {
+    if(key.includes('event')){
+      playType='event';
+    }
+    else if(key.includes('live')){
+      playType='live';
+    }
+  }
+  var streamname=  playType + request.path;
   event = extend(getStream(streamname), request.query);
   console.log('tsnotfound in ' + streamname + ' = ' + event.tsnotfound);
   return response.send(200, 'injected into ' + streamname);
@@ -738,6 +870,7 @@ trimCharacters = function(str, char) {
  * old segments are removed at a fixed rate.
  */
 live = function(request, response) {
+
   var duration, event, playlist, result, renditionName, manifestHeader,
     manifestResources, streampath, tsstreampath, stream;
 

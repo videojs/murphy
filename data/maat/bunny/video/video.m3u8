@@ -3,6 +3,7 @@
 #EXT-X-TARGETDURATION:12
 #EXT-X-MEDIA-SEQUENCE:0
 #EXT-X-DISCONTINUITY-SEQUENCE:0
+#EXT-X-PROGRAM-DATE-TIME:2017-06-09T04:59:01.797Z
 #EXTINF:10.417,
 ../../../../data/maat/bunny/video/media_0.ts
 #EXT-X-CUE-OUT:30
@@ -31,4 +32,3 @@
 ../../../../data/maat/bunny/video/media_8.ts
 #EXTINF:4.214,
 ../../../../data/maat/bunny/video/media_9.ts
-#EXT-X-ENDLIST
