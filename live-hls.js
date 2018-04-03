@@ -7,7 +7,7 @@ var path = require('path');
 var url = require('url');
 var express = require('express');
 var streams = {};
-var debug = 0;
+var debug = 1;
 var defaults = {
   // seconds per resource, defaults to target duration if no override
   // rate: 10,
@@ -27,7 +27,8 @@ var defaults = {
   tsnotfound: 0,
   manifestnotfound: 0,
   resetStream: 0,
-  stopStream: 0
+  stopStream: 0,
+  datetime: 0
 };
 var manifest = [];
 var redirect = [];
@@ -120,7 +121,9 @@ getHeaderObjects = function(fileContent) {
     if (lines[i].toLowerCase().indexOf('.vtt') > -1) {
       break;
     }
-
+    if (lines[i].indexOf('#EXT-X-PROGRAM-DATE-TIME') > -1) {
+      break;
+    }
     if (lines[i].toLowerCase().indexOf('.ts')>-1) {
       //break out because we're no longer in header
       break;
@@ -144,9 +147,13 @@ getSegmentHeader = function(lines, index) {
   var i,
     header='',
     byterange='',
+    datetime='',
     segment;
-  for(i=(index-1);i>0;i--) {
+  for(i = (index - 1); i > 0; i--) {
     //Search backwards from index to get all header lines
+    if (lines[i].indexOf('EXT-X-PROGRAM-DATE-TIME') > -1) {
+      datetime = lines[i];
+    }
     if (lines[i].indexOf('EXTINF')>-1) {
       header=lines[i];
     } else if (lines[i].indexOf('EXT-X-BYTERANGE') > -1) {
@@ -169,6 +176,9 @@ getSegmentHeader = function(lines, index) {
   }
   if (header!='') {
     segment.header=header;
+  }
+  if (datetime != '') {
+    segment.datetime = datetime;
   }
   return segment;
 };
@@ -255,7 +265,7 @@ extractHeader = function(header, event) {
   var lines = [];
   lines.push(header.Firstline);
   if (header.PlaylistType) {
-    lines.push(header.PlaylistType.tag + ':event'); //parameterize this later?
+    lines.push(header.PlaylistType.tag + ':live'); //parameterize this later?
   }
   if (header.TargetDuration) {
     lines.push(header.TargetDuration.tag + ':' + header.TargetDuration.value);
@@ -306,6 +316,7 @@ extractResourceWindow = function(mfest,duration,event) {
   }
   debuglog('startposition: ' + startposition);
   debuglog('endposition: ' + endposition);
+  debuglog('datetime: ' + event.datetime);
   debuglog('overflow: ' + overflow);
   debuglog('resource length: ' + resource.length);
   debuglog('rate: ' + event.rate);
@@ -313,6 +324,9 @@ extractResourceWindow = function(mfest,duration,event) {
   for(i = startposition;i <= endposition;i++) {
     if (resource[i].header) {
       lines.push(resource[i].header);
+    }
+    if (resource[i].datetime) {
+      lines.push(resource[i].datetime.toISOString());
     }
     if (resource[i].byterange) {
       lines.push(resource[i].byterange);
@@ -328,7 +342,13 @@ extractResourceWindow = function(mfest,duration,event) {
       if (referencedResource === 0) {
         lines.push('#EXT-X-DISCONTINUITY');
       }
+      if (resource[referencedResource].datetime) {
+        if (event.datetime == 0) {
+          event.datetime = Date.now();
+        } else {
 
+        }
+      }
       if (resource[referencedResource].header) {
         lines.push(resource[referencedResource].header);
       }
