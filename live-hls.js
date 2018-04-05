@@ -7,7 +7,7 @@ var path = require('path');
 var url = require('url');
 var express = require('express');
 var streams = {};
-var debug = 1;
+var debug = 0;
 var defaults = {
   // seconds per resource, defaults to target duration if no override
   // rate: 10,
@@ -295,7 +295,7 @@ calculateDatetime = function(event, resource, i) {
     console.log((Math.floor((event.dropped + event.window)/resource.length)*event.window)*event.rate);
     DateObject.setSeconds(DateObject.getSeconds() + (Math.floor((event.dropped + event.window)/resource.length)*event.window)*event.rate);
   }
-  console.log('#EXT-X-PROGRAM-DATE-TIME:' + DateObject.toISOString());
+  debuglog('#EXT-X-PROGRAM-DATE-TIME:' + DateObject.toISOString());
   return DateObject.toISOString();
 };
 
