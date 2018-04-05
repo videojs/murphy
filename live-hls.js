@@ -27,8 +27,7 @@ var defaults = {
   tsnotfound: 0,
   manifestnotfound: 0,
   resetStream: 0,
-  stopStream: 0,
-  datetime: 0
+  stopStream: 0
 };
 var manifest = [];
 var redirect = [];
@@ -49,6 +48,7 @@ var getInitialValue;
 var cleanup;
 var extractHeader;
 var extractResourceWindow;
+var calculateDatetime;
 var createManifest;
 var master;
 var processErrors;
@@ -153,8 +153,7 @@ getSegmentHeader = function(lines, index) {
     //Search backwards from index to get all header lines
     if (lines[i].indexOf('EXT-X-PROGRAM-DATE-TIME') > -1) {
       datetime = lines[i];
-    }
-    if (lines[i].indexOf('EXTINF')>-1) {
+    } else if (lines[i].indexOf('EXTINF')>-1) {
       header=lines[i];
     } else if (lines[i].indexOf('EXT-X-BYTERANGE') > -1) {
       byterange=lines[i];
@@ -178,6 +177,7 @@ getSegmentHeader = function(lines, index) {
     segment.header=header;
   }
   if (datetime != '') {
+    console.log('assign segment.datetime');
     segment.datetime = datetime;
   }
   return segment;
@@ -284,7 +284,22 @@ extractHeader = function(header, event) {
   return lines;
 };
 
-extractResourceWindow = function(mfest,duration,event) {
+calculateDatetime = function(event, resource, i) {
+  var currentDateTime;
+  var DateObject;
+  currentDateTime = resource[i].datetime.split('TIME:')[1];
+  DateObject = new Date(currentDateTime);
+  //Determine if the stream has looped yet
+  if (event.dropped > (resource.length-event.window)) {
+    //Adjust datetime according to the number of loops have occurred.
+    console.log((Math.floor((event.dropped + event.window)/resource.length)*event.window)*event.rate);
+    DateObject.setSeconds(DateObject.getSeconds() + (Math.floor((event.dropped + event.window)/resource.length)*event.window)*event.rate);
+  }
+  console.log('#EXT-X-PROGRAM-DATE-TIME:' + DateObject.toISOString());
+  return DateObject.toISOString();
+};
+
+extractResourceWindow = function(mfest, duration, event) {
   var startposition;
   var endposition;
   var overflow = 0;
@@ -302,7 +317,6 @@ extractResourceWindow = function(mfest,duration,event) {
   }
   startposition = startposition%resource.length;
 
-  //startposition = startposition - (startposition % options.step);
   if (event.lastStartPosition<startposition) {
     debuglog('dropped: ' + event.dropped);
   }
@@ -316,7 +330,6 @@ extractResourceWindow = function(mfest,duration,event) {
   }
   debuglog('startposition: ' + startposition);
   debuglog('endposition: ' + endposition);
-  debuglog('datetime: ' + event.datetime);
   debuglog('overflow: ' + overflow);
   debuglog('resource length: ' + resource.length);
   debuglog('rate: ' + event.rate);
@@ -326,7 +339,7 @@ extractResourceWindow = function(mfest,duration,event) {
       lines.push(resource[i].header);
     }
     if (resource[i].datetime) {
-      lines.push(resource[i].datetime.toISOString());
+      lines.push('#EXT-X-PROGRAM-DATE-TIME:' + calculateDatetime(event, resource, i));
     }
     if (resource[i].byterange) {
       lines.push(resource[i].byterange);
@@ -342,15 +355,11 @@ extractResourceWindow = function(mfest,duration,event) {
       if (referencedResource === 0) {
         lines.push('#EXT-X-DISCONTINUITY');
       }
-      if (resource[referencedResource].datetime) {
-        if (event.datetime == 0) {
-          event.datetime = Date.now();
-        } else {
-
-        }
-      }
       if (resource[referencedResource].header) {
         lines.push(resource[referencedResource].header);
+      }
+      if (resource[referencedResource].datetime) {
+        lines.push('#EXT-X-PROGRAM-DATE-TIME:' + calculateDatetime(event, resource, i));
       }
       if (resource[referencedResource].byterange) {
         lines.push(resource[referencedResource].byterange);
