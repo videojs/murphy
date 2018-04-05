@@ -292,7 +292,6 @@ calculateDatetime = function(event, resource, i) {
   //Determine if the stream has looped yet
   if (event.dropped > (resource.length-event.window)) {
     //Adjust datetime according to the number of loops have occurred.
-    console.log((Math.floor((event.dropped + event.window)/resource.length)*event.window)*event.rate);
     DateObject.setSeconds(DateObject.getSeconds() + (Math.floor((event.dropped + event.window)/resource.length)*event.window)*event.rate);
   }
   debuglog('#EXT-X-PROGRAM-DATE-TIME:' + DateObject.toISOString());
