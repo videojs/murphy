@@ -27,7 +27,8 @@ var defaults = {
   tsnotfound: 0,
   manifestnotfound: 0,
   resetStream: 0,
-  stopStream: 0
+  stopStream: 0,
+  calculatedDuration: 0
 };
 var manifest = [];
 var redirect = [];
@@ -54,6 +55,7 @@ var master;
 var processErrors;
 var trimCharacters;
 var ui;
+var stream;
 
 debuglog = function(str) {
   if (debug == 1) {
@@ -143,17 +145,20 @@ getHeaderObjects = function(fileContent) {
   return header;
 };
 
-getSegmentHeader = function(lines, index) {
+getSegmentHeader = function(lines, index, event) {
   var i,
     header='',
     byterange='',
     datetime='',
-    segment;
+    segment,
+    segmentDuration=0;
   for(i = (index - 1); i > 0; i--) {
     //Search backwards from index to get all header lines
     if (lines[i].indexOf('EXT-X-PROGRAM-DATE-TIME') > -1) {
       datetime = lines[i];
     } else if (lines[i].indexOf('EXTINF')>-1) {
+      segmentDuration = parseFloat(lines[i].substring(lines[i].indexOf(':')+1).slice(0,-1));
+      event.calculatedDuration += segmentDuration;
       header=lines[i];
     } else if (lines[i].indexOf('EXT-X-BYTERANGE') > -1) {
       byterange=lines[i];
@@ -183,7 +188,7 @@ getSegmentHeader = function(lines, index) {
   return segment;
 };
 
-getResources = function(fileContent, request) {
+getResources = function(fileContent, request, event) {
   var lines = fileContent.split('\n'),
     header,
     file,
@@ -203,7 +208,7 @@ getResources = function(fileContent, request) {
         (lines[i].toLowerCase().indexOf('.aac') > 0) ||
         (lines[i].toLowerCase().indexOf('.vtt') > 0) ||
         (lines[i].toLowerCase().indexOf('.webvtt') > 0)) {
-      segment=getSegmentHeader(lines, i);
+      segment=getSegmentHeader(lines, i, event);
 
       file = lines[i];
       if (file.indexOf('http')>-1) {
@@ -261,11 +266,11 @@ cleanup = function(fileContent) {
   return lines.join('\n');
 };
 
-extractHeader = function(header, event) {
+extractHeader = function(header, event, streamtype) {
   var lines = [];
   lines.push(header.Firstline);
   if (header.PlaylistType) {
-    lines.push(header.PlaylistType.tag + ':live'); //parameterize this later?
+    lines.push(header.PlaylistType.tag + ':' + streamtype);
   }
   if (header.TargetDuration) {
     lines.push(header.TargetDuration.tag + ':' + header.TargetDuration.value);
@@ -292,13 +297,20 @@ calculateDatetime = function(event, resource, i) {
   //Determine if the stream has looped yet
   if (event.dropped > (resource.length-event.window)) {
     //Adjust datetime according to the number of loops have occurred.
-    DateObject.setSeconds(DateObject.getSeconds() + (Math.floor((event.dropped + event.window)/resource.length)*event.window)*event.rate);
+    if (event.calculatedDuration > 0) {
+      //If we have values based on EXTINF, use the sum of all EXTINF to calculate loop
+      loopDuration = event.calculatedDuration;
+      DateObject.setSeconds(DateObject.getSeconds() + event.calculatedDuration);
+    } else {
+      //If we don't have values based on EXTINF, use targetDuration (which event.rate is based on) to calculate loop
+      DateObject.setSeconds(DateObject.getSeconds() + (Math.floor((event.dropped + event.window)/resource.length)*event.window)*event.rate);
+    }
   }
   debuglog('#EXT-X-PROGRAM-DATE-TIME:' + DateObject.toISOString());
   return DateObject.toISOString();
 };
 
-extractResourceWindow = function(mfest, duration, event) {
+extractResourceWindow = function(mfest, duration, event, streamtype) {
   var startposition;
   var endposition;
   var overflow = 0;
@@ -306,6 +318,9 @@ extractResourceWindow = function(mfest, duration, event) {
   var resource = mfest.resources;
   var lines;
   var i;
+  if (!streamtype) {
+    streamtype='live';
+  }
   startposition = Math.floor((duration*0.001)/event.rate);
   debuglog('start before mod ' + startposition);
   debuglog('event start '+event.start);
@@ -314,12 +329,17 @@ extractResourceWindow = function(mfest, duration, event) {
   if (event.dropped<0) {
     event.dropped=0;
   }
-  startposition = startposition%resource.length;
-
-  if (event.lastStartPosition<startposition) {
-    debuglog('dropped: ' + event.dropped);
+  if (streamtype=='live') {
+    startposition = startposition % resource.length;
+    endposition = startposition + event.window-1;
+    if (event.lastStartPosition<startposition) {
+      debuglog('dropped: ' + event.dropped);
+    }
+  } else {
+    startposition = 0;
+    //start at a 3 segment buffer to end position
+    endposition = Math.floor((duration*0.001)/event.rate) + 3;
   }
-  endposition = startposition + event.window-1;
 
   if (endposition >= resource.length) {
     debuglog('endposition before mod: ' + endposition);
@@ -332,7 +352,7 @@ extractResourceWindow = function(mfest, duration, event) {
   debuglog('overflow: ' + overflow);
   debuglog('resource length: ' + resource.length);
   debuglog('rate: ' + event.rate);
-  lines=extractHeader(header, event);
+  lines=extractHeader(header, event, streamtype);
   for(i = startposition;i <= endposition;i++) {
     if (resource[i].header) {
       lines.push(resource[i].header);
@@ -348,24 +368,28 @@ extractResourceWindow = function(mfest, duration, event) {
     }
   }
   if (overflow>0) {
-    for(i = 0;i<overflow;i++) {
-      var referencedResource = i % resource.length;
+    if (streamtype=='live') {
+      for (i = 0; i < overflow; i++) {
+        var referencedResource = i % resource.length;
 
-      if (referencedResource === 0) {
-        lines.push('#EXT-X-DISCONTINUITY');
+        if (referencedResource === 0) {
+          lines.push('#EXT-X-DISCONTINUITY');
+        }
+        if (resource[referencedResource].header) {
+          lines.push(resource[referencedResource].header);
+        }
+        if (resource[referencedResource].datetime) {
+          lines.push('#EXT-X-PROGRAM-DATE-TIME:' + calculateDatetime(event, resource, i));
+        }
+        if (resource[referencedResource].byterange) {
+          lines.push(resource[referencedResource].byterange);
+        }
+        if (resource[referencedResource].tsfile) {
+          lines.push(resource[referencedResource].tsfile);
+        }
       }
-      if (resource[referencedResource].header) {
-        lines.push(resource[referencedResource].header);
-      }
-      if (resource[referencedResource].datetime) {
-        lines.push('#EXT-X-PROGRAM-DATE-TIME:' + calculateDatetime(event, resource, i));
-      }
-      if (resource[referencedResource].byterange) {
-        lines.push(resource[referencedResource].byterange);
-      }
-      if (resource[referencedResource].tsfile) {
-        lines.push(resource[referencedResource].tsfile);
-      }
+    } else {
+      lines.push('#EXT-X-ENDLIST');
     }
   }
   event.lastStartPosition = startposition;
@@ -382,8 +406,8 @@ extractResourceWindow = function(mfest, duration, event) {
  * @return {string} the lines of the playlist that would be available
  * at the specified time
  */
-createManifest = function(mfest, duration, event) {
-  return extractResourceWindow(mfest, duration, event);
+createManifest = function(mfest, duration, event, streamtype) {
+  return extractResourceWindow(mfest, duration, event, streamtype);
 };
 
 
@@ -634,29 +658,7 @@ master = function(request, response) {
  */
 
 event = function(request, response) {
-  fs.readFile(path.join(__dirname, 'data', request.path), function(error, data) {
-    var event, playlist, result;
-    if (error) {
-      return response.send(404, error);
-    }
-
-    event = extend(getStream('event/' + request.path), request.params);
-
-    playlist = data.toString();
-    result = filterPlaylist(playlist,
-      Date.now() - event.start,
-      event);
-
-    if (playlist.length === result.length) {
-      resetLiveStream('event/' + request.path);
-    }
-
-    response.setHeader('Content-type', 'application/x-mpegURL');
-    response.charset = 'UTF-8';
-    response.write(result);
-    response.status(200);
-    response.end();
-  });
+  stream(request, response, 'event');
 };
 
 redirect = function(request, response) {
@@ -761,21 +763,20 @@ trimCharacters = function(str, char) {
   return str.slice(i);
 };
 
-/**
- * Simulate a sliding window live playlist. New segments are added and
- * old segments are removed at a fixed rate.
- */
-live = function(request, response) {
+
+stream = function(request, response, streamtype) {
   var duration, event, playlist, result, renditionName, manifestHeader,
     manifestResources, streampath, tsstreampath, stream;
 
-
+  if (!streamtype) {
+    streamtype = 'live';
+  }
   fs.readFile(path.join(__dirname, 'data', request.path), function (error, data) {
     if (error) {
       return response.send(404, error);
     }
 
-    streampath = 'live' + request.path;
+    streampath = streamtype + request.path;
     event = extend(getStream(streampath), request.query);
     renditionName = request.path.match(/.*\/(.+).m3u8/i)[1];
     console.log('renditionName: ' + streampath);
@@ -787,12 +788,11 @@ live = function(request, response) {
 
       playlist = data.toString();
       manifestHeader = getHeaderObjects(playlist);
-      manifestResources = getResources(playlist, request);
-      manifest[streampath] =
-      {
-        header: manifestHeader,
-        resources: manifestResources
-      };
+      manifestResources = getResources(playlist, request, event);
+      manifest[streampath] = {
+          header: manifestHeader,
+          resources: manifestResources
+        };
     }
 
     if (event.resetStream==1) {
@@ -838,13 +838,21 @@ live = function(request, response) {
 
     event.rate = event.rate ? event.rate : manifestHeader.TargetDuration.value;
 
-    result=createManifest(manifest[streampath], duration, event);
+    result=createManifest(manifest[streampath], duration, event, streamtype);
 
     response.setHeader('Content-type', 'application/x-mpegURL');
     response.charset = 'UTF-8';
     response.write(result.join('\n'));
     response.end();
   });
+};
+
+/**
+ * Simulate a sliding window live playlist. New segments are added and
+ * old segments are removed at a fixed rate.
+ */
+live = function(request, response) {
+  stream(request, response, 'live');
 };
 
 module.exports = {
