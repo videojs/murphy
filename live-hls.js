@@ -158,7 +158,9 @@ getSegmentHeader = function(lines, index, event) {
       datetime = lines[i];
     } else if (lines[i].indexOf('EXTINF')>-1) {
       segmentDuration = parseFloat(lines[i].substring(lines[i].indexOf(':')+1).slice(0,-1));
-      event.calculatedDuration += segmentDuration;
+      if (event && event.calculatedDuration) {
+        event.calculatedDuration += segmentDuration;
+      }
       header=lines[i];
     } else if (lines[i].indexOf('EXT-X-BYTERANGE') > -1) {
       byterange=lines[i];
