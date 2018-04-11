@@ -112,33 +112,18 @@ getHeaderObjects = function(fileContent) {
       continue;
     }
 
-    if (lines[i].toLowerCase().indexOf('.aac') > -1) {
+    if (lines[i].toLowerCase().indexOf('.aac') > -1 ||
+      lines[i].toLowerCase().indexOf('.webvtt') > -1 ||
+      lines[i].toLowerCase().indexOf('.vtt') > -1 ||
+      lines[i].indexOf('#EXT-X-PROGRAM-DATE-TIME') > -1 ||
+      lines[i].toLowerCase().indexOf('.ts') > -1 ||
+      lines[i].indexOf('#EXTINF') >- 1 ||
+      lines[i].indexOf('#EXT-X-MAP') > -1) {
+      //Breakout because we're no longer in the header
       break;
     }
 
-    if (lines[i].toLowerCase().indexOf('.webvtt') > -1) {
-      break;
-    }
-
-    if (lines[i].toLowerCase().indexOf('.vtt') > -1) {
-      break;
-    }
-    if (lines[i].indexOf('#EXT-X-PROGRAM-DATE-TIME') > -1) {
-      break;
-    }
-    if (lines[i].toLowerCase().indexOf('.ts')>-1) {
-      //break out because we're no longer in header
-      break;
-    }
-    if (lines[i].indexOf('#EXTINF')>-1) {
-      //break out because we're no longer in header
-      break;
-    }
-    if (lines[i].indexOf('#EXT-X-MAP') > -1) {
-      // break out because we're no longer in header
-      break;
-    }
-    if (indexOfColon>0) {
+    if (indexOfColon > 0) {
       header.Extra.push(lines[i]);
     }
   }
@@ -164,11 +149,9 @@ getSegmentHeader = function(lines, index, event) {
       header=lines[i];
     } else if (lines[i].indexOf('EXT-X-BYTERANGE') > -1) {
       byterange=lines[i];
-    } else if (lines[i].indexOf('EXT-X-CUE') > -1) {
-      header = lines[i] + '\n' + header;
-    } else if(lines[i].indexOf('EXT-X-DISCONTINUITY') > -1 && lines[i].indexOf('EXT-X-DISCONTINUITY-SEQUENCE') === -1) {
-      header = lines[i] + '\n' + header;
-    } else if (lines[i].indexOf('EXT-X-MAP') > -1) {
+    } else if (lines[i].indexOf('EXT-X-CUE') > -1 ||
+        (lines[i].indexOf('EXT-X-DISCONTINUITY') > -1 && lines[i].indexOf('EXT-X-DISCONTINUITY-SEQUENCE') === -1) ||
+        (lines[i].indexOf('EXT-X-MAP') > -1)) {
       header = lines[i] + '\n' + header;
     } else {
       break;
@@ -210,7 +193,7 @@ getResources = function(fileContent, request, event) {
         (lines[i].toLowerCase().indexOf('.aac') > 0) ||
         (lines[i].toLowerCase().indexOf('.vtt') > 0) ||
         (lines[i].toLowerCase().indexOf('.webvtt') > 0)) {
-      segment=getSegmentHeader(lines, i, event);
+      segment = getSegmentHeader(lines, i, event);
 
       file = lines[i];
       if (file.indexOf('http')>-1) {
@@ -255,12 +238,8 @@ cleanup = function(fileContent) {
       debuglog('delete line: ' + lines[i]);
       lines.splice(i, 1);
     }
-    if (lines[i].indexOf('#EXT-X-ENDLIST') === 0)
+    if (lines[i].indexOf('#EXT-X-ENDLIST') === 0 || lines[i] == '')
     {
-      debuglog('delete line: ' + lines[i]);
-      lines.splice(i, 1);
-    }
-    if (lines[i] == '') {
       debuglog('delete line: ' + lines[i]);
       lines.splice(i, 1);
     }
@@ -320,9 +299,7 @@ extractResourceWindow = function(mfest, duration, event, streamtype) {
   var resource = mfest.resources;
   var lines;
   var i;
-  if (!streamtype) {
-    streamtype='live';
-  }
+  streamtype = streamtype || 'live';
   startposition = Math.floor((duration*0.001)/event.rate);
   debuglog('start before mod ' + startposition);
   debuglog('event start '+event.start);
@@ -331,7 +308,7 @@ extractResourceWindow = function(mfest, duration, event, streamtype) {
   if (event.dropped<0) {
     event.dropped=0;
   }
-  if (streamtype=='live') {
+  if (streamtype === 'live') {
     startposition = startposition % resource.length;
     endposition = startposition + event.window-1;
     if (event.lastStartPosition<startposition) {
