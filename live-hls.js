@@ -112,13 +112,7 @@ getHeaderObjects = function(fileContent) {
       continue;
     }
 
-    if (lines[i].toLowerCase().indexOf('.aac') > -1 ||
-      lines[i].toLowerCase().indexOf('.webvtt') > -1 ||
-      lines[i].toLowerCase().indexOf('.vtt') > -1 ||
-      lines[i].indexOf('#EXT-X-PROGRAM-DATE-TIME') > -1 ||
-      lines[i].toLowerCase().indexOf('.ts') > -1 ||
-      lines[i].indexOf('#EXTINF') >- 1 ||
-      lines[i].indexOf('#EXT-X-MAP') > -1) {
+    if (/(\.aac|\.webvtt|\.vtt|\.ts|#EXT-X-PROGRAM-DATE-TIME|#EXT-INF|#EXT-X-MAP)/i.test(lines[i])) {
       //Breakout because we're no longer in the header
       break;
     }
