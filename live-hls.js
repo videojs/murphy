@@ -6,8 +6,10 @@ var extend = require('lodash').extend;
 var path = require('path');
 var url = require('url');
 var express = require('express');
+const https = require('https');
+const http = require('http');
 var streams = {};
-var debug = 0;
+var debug = 1;
 var defaults = {
   // seconds per resource, defaults to target duration if no override
   // rate: 10,
@@ -167,7 +169,7 @@ getSegmentHeader = function(lines, index, event) {
   return segment;
 };
 
-getResources = function(fileContent, request, event) {
+getResources = function(fileContent, request, event, baseurl) {
   var lines = fileContent.split('\n'),
     header,
     file,
@@ -187,6 +189,9 @@ getResources = function(fileContent, request, event) {
         (lines[i].toLowerCase().indexOf('.aac') > 0) ||
         (lines[i].toLowerCase().indexOf('.vtt') > 0) ||
         (lines[i].toLowerCase().indexOf('.webvtt') > 0)) {
+      if (baseurl) {
+        lines[i] = baseurl + lines[i];
+      }
       segment = getSegmentHeader(lines, i, event);
 
       file = lines[i];
@@ -195,10 +200,19 @@ getResources = function(fileContent, request, event) {
         if (arr.length > 1) {
           ext = arr[arr.length - 1];
         }
-        reqpathmod = request.path.substr(0, request.path.lastIndexOf('/') + 1);
+        if (request.path) {
+          reqpathmod = request.path.substr(0, request.path.lastIndexOf('/') + 1);
+        } else {
+          requestquery = request.query;
+          reqpathmod = requestquery.url.substr(0, requestquery.url.lastIndexOf('/') + 1);
+        }
         debuglog(reqpathmod);
         debuglog('request path: ' + request.path);
-        redirectFile = 'redirect' + reqpathmod + redirectCount + '.' + ext;
+        if (request.path) {
+          redirectFile = 'redirect' + reqpathmod + redirectCount + '.' + ext;
+        } else {
+          redirectFile = 'redirect/' + reqpathmod + redirectCount + '.' + ext;
+        }
         redirectCount++;
         redirect[redirectFile] = file;
         debuglog('save redirect: ' + redirectFile + ' - ' + file);
@@ -311,7 +325,7 @@ extractResourceWindow = function(mfest, duration, event, streamtype) {
   } else {
     startposition = 0;
     //start at a 3 segment buffer to end position
-    endposition = Math.floor((duration*0.001)/event.rate) + 3;
+    endposition = Math.floor((duration*0.001)/event.rate);
   }
 
   if (endposition >= resource.length) {
@@ -636,6 +650,7 @@ event = function(request, response) {
 
 redirect = function(request, response) {
   var redirectKey;
+  console.log('request.path: ' + request.path);
   event = extend(getStream('redirect' + request.path), request.query);
   redirectKey = 'redirect' + request.path;
   debuglog(redirectKey + ' - ' + redirect[redirectKey]);
@@ -736,89 +751,145 @@ trimCharacters = function(str, char) {
   return str.slice(i);
 };
 
+urlExtractor = function (request, response, body, streamtype, fullurl) {
+  var indexOfLastSlash = fullurl.lastIndexOf('/');
+  console.log('indexOfLastSlash: ' + indexOfLastSlash);
+  baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
+  if (baseurl) {
+    streampath = fullurl;
+    console.log('baseurl=true');
+  } else {
+    console.log('baseurl=false');
+    streampath = streamtype + request.path;
+  }
+
+  console.log('streampath: ' + streampath);
+  //console.log('request.path: ' + request.path);
+  event = extend(getStream(streampath), request.query);
+  renditionName = streampath.match(/.*\/(.+).m3u8/i)[1];
+  console.log('renditionName: ' + streampath);
+  if (!event.sequenceOffsets[renditionName]) {
+    event.sequenceOffsets[renditionName] = Math.floor(Math.random() * 50);
+  }
+  duration = Date.now() - event.start;
+  if (manifest[streampath] == undefined) {
+
+    playlist = body.toString(); //old data
+    console.log('playlist: ' + playlist);
+    manifestHeader = getHeaderObjects(playlist);
+    manifestResources = getResources(playlist, request, event, baseurl);
+    manifest[streampath] = {
+      header: manifestHeader,
+      resources: manifestResources
+    };
+  }
+
+  if (event.resetStream == 1) {
+    event.resetStream = 0;
+    resetLiveStream(streampath);
+  }
+  if (event.resetStream == 2) {
+    event.resetStream = 0;
+    resetAllStreams();
+  }
+
+  if (event.stopStream == 1) {
+    event.resetStream = 0;
+    stopLiveStream(streampath);
+  }
+
+  if (event.stopStream == 2) {
+    event.resetStream = 0;
+    stopAllStreams();
+  }
+
+  if (event.tsnotfound > 0) {
+    //Pick a future .ts file to inject 404
+    tsstreampath = manifest[streampath].resources[event.lastStartPosition + event.window + 1].tsfile;
+    tsstreampath = trimCharacters(tsstreampath, ['/', '.']);
+    console.log('Target for 404: ' + tsstreampath);
+    stream = getStream(tsstreampath);
+    //Pass error value to the ts stream
+    if (stream.tsnotfound) {
+      stream.tsnotfound++;
+    }
+    else {
+      stream.tsnotfound = 1;
+    }
+    event.tsnotfound--;
+  }
+  if (event.manifestnotfound > 0) {
+    if (processErrors(request, response, event) == true) {
+      console.log('errors processed manifestnotfound=' + event.manifestnotfound);
+      return response;
+    }
+  }
+
+  event.rate = event.rate ? event.rate : manifestHeader.TargetDuration.value;
+
+  result = createManifest(manifest[streampath], duration, event, streamtype);
+
+  response.setHeader('Content-type', 'application/x-mpegURL');
+  response.charset = 'UTF-8';
+  response.write(result.join('\n'));
+  response.end();
+};
 
 stream = function(request, response, streamtype) {
   var duration, event, playlist, result, renditionName, manifestHeader,
-    manifestResources, streampath, tsstreampath, stream;
+    manifestResources, streampath, tsstreampath, stream, fullurl, baseurl;
 
   if (!streamtype) {
     streamtype = 'live';
   }
-  fs.readFile(path.join(__dirname, 'data', request.path), function (error, data) {
-    if (error) {
-      return response.send(404, error);
-    }
+  fullurl = request.query.url;
 
-    streampath = streamtype + request.path;
-    event = extend(getStream(streampath), request.query);
-    renditionName = request.path.match(/.*\/(.+).m3u8/i)[1];
-    console.log('renditionName: ' + streampath);
-    if (!event.sequenceOffsets[renditionName]) {
-      event.sequenceOffsets[renditionName] = Math.floor(Math.random() * 50);
-    }
-    duration = Date.now() - event.start;
-    if (manifest[streampath] == undefined) {
+  console.log('fullurl: ' + fullurl);
 
-      playlist = data.toString();
-      manifestHeader = getHeaderObjects(playlist);
-      manifestResources = getResources(playlist, request, event);
-      manifest[streampath] = {
-          header: manifestHeader,
-          resources: manifestResources
-        };
-    }
+  if (fullurl) {
 
-    if (event.resetStream==1) {
-      event.resetStream = 0;
-      resetLiveStream(streampath);
-    }
-    if (event.resetStream==2) {
-      event.resetStream = 0;
-      resetAllStreams();
-    }
+    if (fullurl.indexOf('https') > -1) {
+      https.get(fullurl, res => {
+        res.setEncoding('utf8');
+        var body = '';
 
-    if (event.stopStream==1) {
-      event.resetStream = 0;
-      stopLiveStream(streampath);
+
+        res.on('data', data => {
+          body += data;
+        });
+        res.on('end', () => {
+          body = body.toString();
+
+          urlExtractor(request, response, body, streamtype, fullurl);
+          //fs.readFile(path.join(__dirname, 'data', request.path), function (error, data) {
+          //   if (error) {
+          //     return response.send(404, error);
+          //   }
+
+        });
+      });
+    } else if (fullurl.indexOf('http') > -1) {
+      http.get(fullurl, res => {
+        res.setEncoding('utf8');
+        var body = '';
+
+
+        res.on('data', data => {
+          body += data;
+        });
+        res.on('end', () => {
+          body = body.toString();
+
+          urlExtractor(request, response, body, streamtype, fullurl);
+
+        });
+      });
     }
-
-    if (event.stopStream==2) {
-      event.resetStream = 0;
-      stopAllStreams();
-    }
-
-    if (event.tsnotfound>0) {
-      //Pick a future .ts file to inject 404
-      tsstreampath = manifest[streampath].resources[event.lastStartPosition + event.window + 1].tsfile;
-      tsstreampath = trimCharacters(tsstreampath, ['/','.']);
-      console.log('Target for 404: ' + tsstreampath);
-      stream = getStream(tsstreampath);
-      //Pass error value to the ts stream
-      if (stream.tsnotfound) {
-        stream.tsnotfound++;
-      }
-      else {
-        stream.tsnotfound = 1;
-      }
-      event.tsnotfound--;
-    }
-    if (event.manifestnotfound>0) {
-      if (processErrors(request, response, event) == true) {
-        console.log('errors processed manifestnotfound=' + event.manifestnotfound);
-        return response;
-      }
-    }
-
-    event.rate = event.rate ? event.rate : manifestHeader.TargetDuration.value;
-
-    result=createManifest(manifest[streampath], duration, event, streamtype);
-
-    response.setHeader('Content-type', 'application/x-mpegURL');
-    response.charset = 'UTF-8';
-    response.write(result.join('\n'));
-    response.end();
-  });
+  }
+  //});
 };
+
+
 
 /**
  * Simulate a sliding window live playlist. New segments are added and
