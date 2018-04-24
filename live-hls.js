@@ -190,13 +190,18 @@ getResources = function(fileContent, request, event, baseurl) {
         (lines[i].toLowerCase().indexOf('.aac') > 0) ||
         (lines[i].toLowerCase().indexOf('.vtt') > 0) ||
         (lines[i].toLowerCase().indexOf('.webvtt') > 0)) {
-      if (baseurl) {
-        lines[i] = baseurl + lines[i];
-      }
+      // if (baseurl) {
+      //   lines[i] = baseurl + lines[i];
+      // }
       segment = getSegmentHeader(lines, i, event);
 
-      file = lines[i];
-      if (file.indexOf('http')>-1) {
+      file = lines[i].replace(/(\r)/gm,"");
+      if (baseurl) {
+        if (file.indexOf('http') === -1) {
+          file = baseurl + file;
+        }
+      }
+      if (file.indexOf('http') > -1) {
         arr = file.split('.');
         if (arr.length > 1) {
           ext = arr[arr.length - 1];
@@ -209,16 +214,23 @@ getResources = function(fileContent, request, event, baseurl) {
         }
         debuglog(reqpathmod);
         debuglog('request path: ' + request.path);
-        if (request.path) {
+        if (baseurl) {
+          var indexOfhttp = baseurl.indexOf('//') + 2;
+
+          redirectFile = 'redirect/' + baseurl.substr(indexOfhttp) + redirectCount + '.' + ext;
+          console.log(redirectFile);
+        } else if (request.path) {
           redirectFile = 'redirect' + reqpathmod + redirectCount + '.' + ext;
-        } else {
-          redirectFile = 'redirect/' + reqpathmod + redirectCount + '.' + ext;
-        }
+        }// else if (!request.path) {
+        //   redirectFile = 'redirect/' + reqpathmod + redirectCount + '.' + ext;
+        // }
         redirectCount++;
         redirect[redirectFile] = file;
         debuglog('save redirect: ' + redirectFile + ' - ' + file);
-        for (j = 0; j < reqpathmod.split('/').length - 1; j++) {
-          prepend_redirectFile = prepend_redirectFile + '../';
+        if (!baseurl) {
+          for (j = 0; j < reqpathmod.split('/').length - 1; j++) {
+            prepend_redirectFile = prepend_redirectFile + '../';
+          }
         }
         file = prepend_redirectFile + redirectFile;
         prepend_redirectFile = '';
@@ -553,6 +565,93 @@ var parseQueryString = function( queryString ) {
   return params;
 };
 
+parseMaster = function(request, response, body) {
+  var result = body.toString();
+  var lines = result.split('\n');
+  var fullurl = request.query.url;
+  var uriIndex;
+  var i;
+  var baseurl;
+  var renditions = [];
+  var rebuiltResult = '';
+  var currentRendition;
+  var currentPath;
+  var eventType;
+  if (request.query.event) {
+    eventType = request.query.event;
+  } else {
+    eventType = 'live';
+  }
+
+  for (i = 0; i < lines.length; i++) {
+    if (lines[i].indexOf('EXT-X-MEDIA') > -1) {
+      if (lines[i].indexOf('TYPE=AUDIO') > -1 ||
+        lines[i].indexOf('TYPE=SUBTITLES') > -1) {
+        uriIndex = lines[i].indexOf('URI=');
+        if (uriIndex > -1) {
+          line = trimCharacters(lines[i].substr(uriIndex + 5), ['\'', '/', '.']).replace(/['"]+/g, '');
+          renditions.push(line);
+        }
+      }
+    }
+    else if (lines[i].indexOf('EXT') > -1) {
+      //continue;
+    }
+    else if (lines[i].indexOf('.m3u8') > -1) {
+      var indexOfLastSlash = fullurl.lastIndexOf('/');
+      console.log('indexOfLastSlash: ' + indexOfLastSlash);
+      baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
+      var manifestUrl = 'http://localhost:9191/' + eventType + '?url=' + baseurl + trimCharacters(lines[i], ['.', '/']);
+      console.log('manifestUrl: ' + manifestUrl);
+      renditions.push(manifestUrl);
+      lines[i] = manifestUrl;
+    }
+    rebuiltResult = rebuiltResult + lines[i] + '\n';
+  }
+
+  for (i = 0; i < renditions.length; i++) {
+    if (request.query.resetStream == 1) {
+      resetLiveStream(renditions[i]);
+    }
+
+    //Ensure stream starts simultaneously with other renditions
+    currentRendition = renditions[i];
+    urlarr = currentRendition.split('?');
+    currentPath = urlarr[0];
+    // if (urlarr[1]) {
+    //   currentQuery = parseQueryString(urlarr[1]);
+    //   strm = extend(getStream(currentPath), currentQuery);
+    //   console.log('start rendition stream: ' + currentPath + ' start: ' + strm.start);
+    //   strm = extend(getStream(renditions[i]), currentQuery);
+    //   console.log('start rendition stream: ' + renditions[i] + ' start: ' + strm.start);
+    //
+    // }
+    // else {
+    console.log('start rendition stream: ' + renditions[i]);
+    strm = getStream(renditions[i]);
+    console.log('start rendition stream: ' + renditions[i] + ' start: ' + strm.start);
+    //}
+
+    if (request.query.stopStream == 1) {
+      stopLiveStream(renditions[i]);
+    }
+  }
+
+  if (request.query.resetStream == 2) {
+    resetAllStreams();
+  }
+  if (request.query.stopStream == 2) {
+    stopAllStreams();
+  }
+
+
+  response.setHeader('Content-type', 'application/x-mpegURL');
+  response.charset = 'UTF-8';
+  response.write(rebuiltResult);
+  response.status(200);
+  response.end();
+};
+
 //Start each rendition at the same time
 master = function(request, response) {
   var renditions = [],
@@ -574,17 +673,32 @@ master = function(request, response) {
   console.log('fetch master: ' + request.path);
 
   fullurl = request.query.url;
-  if (request.query.event) {
-    eventType = request.query.event;
-  } else {
-    eventType = 'live';
-  }
 
   console.log('fullurl: ' + fullurl);
 
   if (fullurl) {
 
-    if (fullurl.indexOf('http') > -1) {
+    if (fullurl.indexOf('https') > -1) {
+      https.get(fullurl, res => {
+        res.setEncoding('utf8');
+        var body = '';
+
+
+        res.on('data', data => {
+          body += data;
+        });
+        res.on('end', () => {
+          body = body.toString();
+          parseMaster(request, response, body, eventType);
+          //       fs.readFile(path.join(__dirname, 'master', request.path), function(error, data) {
+          // if (error) {
+          //   return response.send(404, error);
+          // }
+
+          //Function
+        });
+      });
+    } else if (fullurl.indexOf('http') > -1) {
       http.get(fullurl, res => {
         res.setEncoding('utf8');
         var body = '';
@@ -596,82 +710,13 @@ master = function(request, response) {
         res.on('end', () => {
           body = body.toString();
 
-
+          parseMaster(request, response, body, eventType);
           //       fs.readFile(path.join(__dirname, 'master', request.path), function(error, data) {
           // if (error) {
           //   return response.send(404, error);
           // }
 
-          result = body.toString();
-          lines = result.split('\n');
-
-          for (i = 0; i < lines.length; i++) {
-            if (lines[i].indexOf('EXT-X-MEDIA') > -1) {
-              if (lines[i].indexOf('TYPE=AUDIO') > -1 ||
-                lines[i].indexOf('TYPE=SUBTITLES') > -1) {
-                uriIndex = lines[i].indexOf('URI=');
-                if (uriIndex > -1) {
-                  line = trimCharacters(lines[i].substr(uriIndex + 5), ['\'', '/', '.']).replace(/['"]+/g, '');
-                  renditions.push(line);
-                }
-              }
-            }
-            else if (lines[i].indexOf('EXT') > -1) {
-              //continue;
-            }
-            else if (lines[i].indexOf('.m3u8') > -1) {
-              var indexOfLastSlash = fullurl.lastIndexOf('/');
-              console.log('indexOfLastSlash: ' + indexOfLastSlash);
-              baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
-              var manifestUrl = 'http://localhost:9191/' + eventType + '?url=' + baseurl + trimCharacters(lines[i], ['.', '/']);
-              console.log('manifestUrl: ' + manifestUrl);
-              renditions.push(manifestUrl);
-              lines[i] = manifestUrl;
-            }
-            rebuiltResult = rebuiltResult + lines[i] + '\n';
-          }
-
-          for (i = 0; i < renditions.length; i++) {
-            if (request.query.resetStream == 1) {
-              resetLiveStream(renditions[i]);
-            }
-
-            //Ensure stream starts simultaneously with other renditions
-            currentRendition = renditions[i];
-            urlarr = currentRendition.split('?');
-            currentPath = urlarr[0];
-            // if (urlarr[1]) {
-            //   currentQuery = parseQueryString(urlarr[1]);
-            //   strm = extend(getStream(currentPath), currentQuery);
-            //   console.log('start rendition stream: ' + currentPath + ' start: ' + strm.start);
-            //   strm = extend(getStream(renditions[i]), currentQuery);
-            //   console.log('start rendition stream: ' + renditions[i] + ' start: ' + strm.start);
-            //
-            // }
-            // else {
-              console.log('start rendition stream: ' + renditions[i]);
-              strm = getStream(renditions[i]);
-              console.log('start rendition stream: ' + renditions[i] + ' start: ' + strm.start);
-            //}
-
-            if (request.query.stopStream == 1) {
-              stopLiveStream(renditions[i]);
-            }
-          }
-
-          if (request.query.resetStream == 2) {
-            resetAllStreams();
-          }
-          if (request.query.stopStream == 2) {
-            stopAllStreams();
-          }
-
-
-          response.setHeader('Content-type', 'application/x-mpegURL');
-          response.charset = 'UTF-8';
-          response.write(rebuiltResult);
-          response.status(200);
-          response.end();
+          //Function
         });
       });
       return this;
@@ -818,7 +863,7 @@ urlExtractor = function (request, response, body, streamtype, fullurl) {
   duration = Date.now() - event.start;
   if (manifest[streampath] == undefined) {
 
-    playlist = body.toString(); //old data
+    playlist = body.toString().replace(/(\r)/gm,""); //old data
     console.log('playlist: ' + playlist);
     manifestHeader = getHeaderObjects(playlist);
     manifestResources = getResources(playlist, request, event, baseurl);
