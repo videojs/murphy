@@ -2,6 +2,7 @@
  * Routes that help simulate live HLS playlists.
  */
 var fs = require('fs');
+var os = require('os');
 var extend = require('lodash').extend;
 var path = require('path');
 var url = require('url');
@@ -556,6 +557,7 @@ var parseQueryString = function( queryString ) {
 master = function(request, response) {
   var renditions = [],
     result,
+    rebuiltResult = '',
     lines,
     i,
     uriIndex,
@@ -564,78 +566,117 @@ master = function(request, response) {
     currentPath,
     currentQuery,
     urlarr,
-    strm;
+    strm,
+    fullurl,
+    eventType,
+    baseurl;
+  console.log('hostname:' + os.hostname());
   console.log('fetch master: ' + request.path);
-  fs.readFile(path.join(__dirname, 'master', request.path), function(error, data) {
-    if (error) {
-      return response.send(404, error);
-    }
 
-    result = data.toString();
-    lines = result.split('\n');
+  fullurl = request.query.url;
+  if (request.query.event) {
+    eventType = request.query.event;
+  } else {
+    eventType = 'live';
+  }
 
-    for(i = 0;i<lines.length;i++) {
-      if (lines[i].indexOf('EXT-X-MEDIA') > -1) {
-        if (lines[i].indexOf('TYPE=AUDIO') > -1 ||
-            lines[i].indexOf('TYPE=SUBTITLES') > -1) {
-          uriIndex = lines[i].indexOf('URI=');
-          if (uriIndex > -1) {
-            line=trimCharacters(lines[i].substr(uriIndex+5), ['\'', '/', '.']).replace(/['"]+/g, '');
-            renditions.push(line);
+  console.log('fullurl: ' + fullurl);
+
+  if (fullurl) {
+
+    if (fullurl.indexOf('http') > -1) {
+      http.get(fullurl, res => {
+        res.setEncoding('utf8');
+        var body = '';
+
+
+        res.on('data', data => {
+          body += data;
+        });
+        res.on('end', () => {
+          body = body.toString();
+
+
+          //       fs.readFile(path.join(__dirname, 'master', request.path), function(error, data) {
+          // if (error) {
+          //   return response.send(404, error);
+          // }
+
+          result = body.toString();
+          lines = result.split('\n');
+
+          for (i = 0; i < lines.length; i++) {
+            if (lines[i].indexOf('EXT-X-MEDIA') > -1) {
+              if (lines[i].indexOf('TYPE=AUDIO') > -1 ||
+                lines[i].indexOf('TYPE=SUBTITLES') > -1) {
+                uriIndex = lines[i].indexOf('URI=');
+                if (uriIndex > -1) {
+                  line = trimCharacters(lines[i].substr(uriIndex + 5), ['\'', '/', '.']).replace(/['"]+/g, '');
+                  renditions.push(line);
+                }
+              }
+            }
+            else if (lines[i].indexOf('EXT') > -1) {
+              //continue;
+            }
+            else if (lines[i].indexOf('.m3u8') > -1) {
+              var indexOfLastSlash = fullurl.lastIndexOf('/');
+              console.log('indexOfLastSlash: ' + indexOfLastSlash);
+              baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
+              var manifestUrl = 'http://localhost:9191/' + eventType + '?url=' + baseurl + trimCharacters(lines[i], ['.', '/']);
+              console.log('manifestUrl: ' + manifestUrl);
+              renditions.push(manifestUrl);
+              lines[i] = manifestUrl;
+            }
+            rebuiltResult = rebuiltResult + lines[i] + '\n';
           }
-        }
-      }
-      else if (lines[i].indexOf('EXT') > -1) {
-        continue;
-      }
-      else if (lines[i].indexOf('.m3u8')>-1) {
-        renditions.push(trimCharacters(lines[i], ['.','/']));
-      }
+
+          for (i = 0; i < renditions.length; i++) {
+            if (request.query.resetStream == 1) {
+              resetLiveStream(renditions[i]);
+            }
+
+            //Ensure stream starts simultaneously with other renditions
+            currentRendition = renditions[i];
+            urlarr = currentRendition.split('?');
+            currentPath = urlarr[0];
+            // if (urlarr[1]) {
+            //   currentQuery = parseQueryString(urlarr[1]);
+            //   strm = extend(getStream(currentPath), currentQuery);
+            //   console.log('start rendition stream: ' + currentPath + ' start: ' + strm.start);
+            //   strm = extend(getStream(renditions[i]), currentQuery);
+            //   console.log('start rendition stream: ' + renditions[i] + ' start: ' + strm.start);
+            //
+            // }
+            // else {
+              console.log('start rendition stream: ' + renditions[i]);
+              strm = getStream(renditions[i]);
+              console.log('start rendition stream: ' + renditions[i] + ' start: ' + strm.start);
+            //}
+
+            if (request.query.stopStream == 1) {
+              stopLiveStream(renditions[i]);
+            }
+          }
+
+          if (request.query.resetStream == 2) {
+            resetAllStreams();
+          }
+          if (request.query.stopStream == 2) {
+            stopAllStreams();
+          }
+
+
+          response.setHeader('Content-type', 'application/x-mpegURL');
+          response.charset = 'UTF-8';
+          response.write(rebuiltResult);
+          response.status(200);
+          response.end();
+        });
+      });
+      return this;
     }
-
-    for(i = 0;i<renditions.length;i++) {
-      if (request.query.resetStream==1) {
-        resetLiveStream(renditions[i]);
-      }
-
-      //Ensure stream starts simultaneously with other renditions
-      currentRendition=renditions[i];
-      urlarr=currentRendition.split('?');
-      currentPath=urlarr[0];
-      if (urlarr[1]) {
-        currentQuery=parseQueryString(urlarr[1]);
-        strm=extend(getStream(currentPath), currentQuery);
-        console.log('start rendition stream: ' + currentPath + ' start: ' + strm.start);
-        strm=extend(getStream(renditions[i]), currentQuery);
-        console.log('start rendition stream: ' + renditions[i] + ' start: ' + strm.start);
-
-      }
-      else {
-        console.log('start rendition stream: ' + renditions[i]);
-        strm=getStream(renditions[i]);
-        console.log('start rendition stream: ' + renditions[i] + ' start: ' + strm.start);
-      }
-
-      if (request.query.stopStream==1) {
-        stopLiveStream(renditions[i]);
-      }
-    }
-
-    if (request.query.resetStream==2) {
-      resetAllStreams();
-    }
-    if (request.query.stopStream==2) {
-      stopAllStreams();
-    }
-
-
-    response.setHeader('Content-type', 'application/x-mpegURL');
-    response.charset = 'UTF-8';
-    response.write(result);
-    response.status(200);
-    response.end();
-  });
-  return this;
+  }
 };
 
 /**
@@ -752,9 +793,12 @@ trimCharacters = function(str, char) {
 };
 
 urlExtractor = function (request, response, body, streamtype, fullurl) {
-  var indexOfLastSlash = fullurl.lastIndexOf('/');
-  console.log('indexOfLastSlash: ' + indexOfLastSlash);
-  baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
+  var baseurl, streampath, renditionName, manifestHeader, manifestResources, tsstreampath, result, playlist, duration;
+  if (fullurl) {
+    var indexOfLastSlash = fullurl.lastIndexOf('/');
+    console.log('indexOfLastSlash: ' + indexOfLastSlash);
+    baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
+  }
   if (baseurl) {
     streampath = fullurl;
     console.log('baseurl=true');
@@ -827,7 +871,7 @@ urlExtractor = function (request, response, body, streamtype, fullurl) {
 
   event.rate = event.rate ? event.rate : manifestHeader.TargetDuration.value;
 
-  result = createManifest(manifest[streampath], duration, event, streamtype);
+  result = extractResourceWindow(manifest[streampath], duration, event, streamtype);
 
   response.setHeader('Content-type', 'application/x-mpegURL');
   response.charset = 'UTF-8';
@@ -861,10 +905,7 @@ stream = function(request, response, streamtype) {
           body = body.toString();
 
           urlExtractor(request, response, body, streamtype, fullurl);
-          //fs.readFile(path.join(__dirname, 'data', request.path), function (error, data) {
-          //   if (error) {
-          //     return response.send(404, error);
-          //   }
+
 
         });
       });
@@ -885,6 +926,15 @@ stream = function(request, response, streamtype) {
         });
       });
     }
+  } else {
+    fs.readFile(path.join(__dirname, 'data', request.path), function (error, data) {
+      if (error) {
+        return response.send(404, error);
+      }
+
+      urlExtractor(request, response, data, streamtype, fullurl);
+
+    });
   }
   //});
 };
