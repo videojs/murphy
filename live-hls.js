@@ -592,14 +592,19 @@ parseMaster = function(request, response, body) {
         lines[i].indexOf('TYPE=SUBTITLES') > -1) {
         uriIndex = lines[i].indexOf('URI=');
         if (uriIndex > -1) {
-          line = trimCharacters(lines[i].substr(uriIndex + 5), ['\'', '/', '.']).replace(/['"]+/g, '');
-          indexOfLastSlash = fullurl.lastIndexOf('/');
-          console.log('indexOfLastSlash: ' + indexOfLastSlash);
-          baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
-          manifestUrl = 'http://localhost:9191/' + eventType + '?url=' + baseurl + trimCharacters(line, ['.', '/']);
-          renditions.push(manifestUrl);
-          lines[i] = lines[i].replace(line, manifestUrl);
-          console.log(lines[i]);
+          if (fullurl) {
+            line = trimCharacters(lines[i].substr(uriIndex + 5), ['\'', '/', '.']).replace(/['"]+/g, '');
+            indexOfLastSlash = fullurl.lastIndexOf('/');
+            console.log('indexOfLastSlash: ' + indexOfLastSlash);
+            baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
+            manifestUrl = 'http://localhost:9191/' + eventType + '?url=' + baseurl + trimCharacters(line, ['.', '/']);
+            renditions.push(manifestUrl);
+            lines[i] = lines[i].replace(line, manifestUrl);
+            console.log(lines[i]);
+          } else {
+            line=trimCharacters(lines[i].substr(uriIndex+5), ['\'', '/', '.']).replace(/['"]+/g, '');
+            renditions.push(line);
+          }
         }
       }
     }
@@ -607,13 +612,17 @@ parseMaster = function(request, response, body) {
       //continue;
     }
     else if (lines[i].indexOf('.m3u8') > -1) {
-      indexOfLastSlash = fullurl.lastIndexOf('/');
-      console.log('indexOfLastSlash: ' + indexOfLastSlash);
-      baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
-      manifestUrl = 'http://localhost:9191/' + eventType + '?url=' + baseurl + trimCharacters(lines[i], ['.', '/']);
-      console.log('manifestUrl: ' + manifestUrl);
-      renditions.push(manifestUrl);
-      lines[i] = manifestUrl;
+      if (fullurl) {
+        indexOfLastSlash = fullurl.lastIndexOf('/');
+        console.log('indexOfLastSlash: ' + indexOfLastSlash);
+        baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
+        manifestUrl = 'http://localhost:9191/' + eventType + '?url=' + baseurl + trimCharacters(lines[i], ['.', '/']);
+        console.log('manifestUrl: ' + manifestUrl);
+        renditions.push(manifestUrl);
+        lines[i] = manifestUrl;
+      } else {
+        renditions.push(trimCharacters(lines[i], ['.','/']));
+      }
     }
     rebuiltResult = rebuiltResult + lines[i] + '\n';
   }
@@ -625,21 +634,20 @@ parseMaster = function(request, response, body) {
 
     //Ensure stream starts simultaneously with other renditions
     currentRendition = renditions[i];
-    urlarr = currentRendition.split('?');
+    var urlarr = currentRendition.split('?');
     currentPath = urlarr[0];
-    // if (urlarr[1]) {
-    //   currentQuery = parseQueryString(urlarr[1]);
-    //   strm = extend(getStream(currentPath), currentQuery);
-    //   console.log('start rendition stream: ' + currentPath + ' start: ' + strm.start);
-    //   strm = extend(getStream(renditions[i]), currentQuery);
-    //   console.log('start rendition stream: ' + renditions[i] + ' start: ' + strm.start);
-    //
-    // }
-    // else {
-    console.log('start rendition stream: ' + renditions[i]);
-    strm = getStream(renditions[i]);
-    console.log('start rendition stream: ' + renditions[i] + ' start: ' + strm.start);
-    //}
+    if (!fullurl && urlarr[1]) {
+      currentQuery = parseQueryString(urlarr[1]);
+      strm = extend(getStream(currentPath), currentQuery);
+      console.log('start rendition stream: ' + currentPath + ' start: ' + strm.start);
+      strm = extend(getStream(renditions[i]), currentQuery);
+      console.log('start rendition stream: ' + renditions[i] + ' start: ' + strm.start);
+    }
+    else {
+      console.log('start rendition stream: ' + renditions[i]);
+      strm = getStream(renditions[i]);
+      console.log('start rendition stream: ' + renditions[i] + ' start: ' + strm.start);
+    }
 
     if (request.query.stopStream == 1) {
       stopLiveStream(renditions[i]);
