@@ -188,6 +188,8 @@ getResources = function(fileContent, request, event, baseurl) {
     file = null;
     if ((lines[i].toLowerCase().indexOf('.ts') > 0) ||
         (lines[i].toLowerCase().indexOf('.aac') > 0) ||
+        (lines[i].toLowerCase().indexOf('.m4s') > 0) ||
+        (lines[i].toLowerCase().indexOf('.mp4') > 0) ||
         (lines[i].toLowerCase().indexOf('.vtt') > 0) ||
         (lines[i].toLowerCase().indexOf('.webvtt') > 0)) {
       // if (baseurl) {
@@ -580,12 +582,18 @@ parseMaster = function(request, response, body) {
   var indexOfLastSlash;
   var manifestUrl;
   var line;
+  var indexOfIp;
+  var ipAddress;
+
+  console.log('ip address  '+request);
   if (request.query.event) {
     eventType = request.query.event;
+    console.log('event type is  '+eventType);
   } else {
     eventType = 'live';
+      console.log('event type is  '+eventType);
   }
-
+//test
   for (i = 0; i < lines.length; i++) {
     if (lines[i].indexOf('EXT-X-MEDIA') > -1) {
       if (lines[i].indexOf('TYPE=AUDIO') > -1 ||
@@ -593,11 +601,11 @@ parseMaster = function(request, response, body) {
         uriIndex = lines[i].indexOf('URI=');
         if (uriIndex > -1) {
           if (fullurl) {
-            line = trimCharacters(lines[i].substr(uriIndex + 5), ['\'', '/', '.']).replace(/['"]+/g, '');
+          line = trimCharacters(lines[i].substr(uriIndex + 5), ['\'', '/', '.']).replace(/['"]+/g, '').replace(/(\r)/gm,"");
             indexOfLastSlash = fullurl.lastIndexOf('/');
             console.log('indexOfLastSlash: ' + indexOfLastSlash);
             baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
-            manifestUrl = 'http://localhost:9191/' + eventType + '?url=' + baseurl + trimCharacters(line, ['.', '/']);
+            manifestUrl = 'http://'+request.headers.host + '/' + eventType + '?url=' + baseurl + trimCharacters(line, ['.', '/']);
             renditions.push(manifestUrl);
             lines[i] = lines[i].replace(line, manifestUrl);
             console.log(lines[i]);
@@ -614,9 +622,12 @@ parseMaster = function(request, response, body) {
     else if (lines[i].indexOf('.m3u8') > -1) {
       if (fullurl) {
         indexOfLastSlash = fullurl.lastIndexOf('/');
+        indexOfIp = fullurl.indexOf('master');
+      //  ipAddress = fullurl.substring(0, indexOf);
         console.log('indexOfLastSlash: ' + indexOfLastSlash);
         baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
-        manifestUrl = 'http://localhost:9191/' + eventType + '?url=' + baseurl + trimCharacters(lines[i], ['.', '/']);
+        console.log('request headers  '+request.headers.host);
+        manifestUrl = 'http://' + request.headers.host + '/' + eventType + '?url=' + baseurl + trimCharacters(lines[i], ['.', '/']);
         console.log('manifestUrl: ' + manifestUrl);
         renditions.push(manifestUrl);
         lines[i] = manifestUrl;
@@ -687,7 +698,7 @@ master = function(request, response) {
     eventType,
     baseurl;
   console.log('hostname:' + os.hostname());
-  console.log('fetch master: ' + request.path);
+  //console.log('fetch master: ' + request.path);
 
   fullurl = request.query.url;
 
@@ -706,7 +717,7 @@ master = function(request, response) {
         });
         res.on('end', () => {
           body = body.toString();
-          parseMaster(request, response, body, eventType);
+          parseMaster(request, response, body);
           //       fs.readFile(path.join(__dirname, 'master', request.path), function(error, data) {
           // if (error) {
           //   return response.send(404, error);
@@ -727,7 +738,7 @@ master = function(request, response) {
         res.on('end', () => {
           body = body.toString();
 
-          parseMaster(request, response, body, eventType);
+          parseMaster(request, response, body);
           //       fs.readFile(path.join(__dirname, 'master', request.path), function(error, data) {
           // if (error) {
           //   return response.send(404, error);
@@ -738,6 +749,15 @@ master = function(request, response) {
       });
       return this;
     }
+  } else {
+    fs.readFile(path.join(__dirname, 'master', request.path), function (error, data) {
+      if (error) {
+        return response.send(404, error);
+      }
+
+        parseMaster(request, response, data);
+
+    });
   }
 };
 
@@ -752,15 +772,33 @@ event = function(request, response) {
 };
 
 redirect = function(request, response) {
+  debugger;
   var redirectKey;
+  var indexOfRedirectKey;
   console.log('request.path: ' + request.path);
   event = extend(getStream('redirect' + request.path), request.query);
   redirectKey = 'redirect' + request.path;
+  console.log('redirect key before  =>  '+redirectKey);
+  if(redirectKey.indexOf('.mp4') >-1){
+      indexOfRedirectKey=redirectKey.lastIndexOf('mp4');
+      console.log('indexOfRedirectKey mp4  is   '+indexOfRedirectKey);
+      redirectKey=redirectKey.slice(0,indexOfRedirectKey+3);
+
+      console.log('redirect key is   =>  '+redirectKey);
+  }
+  if(redirectKey.indexOf('.m4s') >-1){
+      indexOfRedirectKey=redirectKey.lastIndexOf('m4s');
+        console.log('indexOfRedirectKey m4s  is   '+indexOfRedirectKey);
+      redirectKey=redirectKey.slice(0,indexOfRedirectKey+3);
+      console.log('redirect key is   =>  '+redirectKey);
+  }
+
   debuglog(redirectKey + ' - ' + redirect[redirectKey]);
   if (processErrors(request, response, event) == true) {
     console.log('errors processed tsnotfound=' + event.tsnotfound);
     return response;
   }
+  console.log('redirect key '+redirectKey+ '   '+redirect[redirectKey]);
   //var fileStream = fs.createReadStream(redirect[redirectKey]);
   response.writeHead(301,
     {Location: redirect[redirectKey]}
