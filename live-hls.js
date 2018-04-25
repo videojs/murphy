@@ -577,6 +577,9 @@ parseMaster = function(request, response, body) {
   var currentRendition;
   var currentPath;
   var eventType;
+  var indexOfLastSlash;
+  var manifestUrl;
+  var line;
   if (request.query.event) {
     eventType = request.query.event;
   } else {
@@ -590,7 +593,13 @@ parseMaster = function(request, response, body) {
         uriIndex = lines[i].indexOf('URI=');
         if (uriIndex > -1) {
           line = trimCharacters(lines[i].substr(uriIndex + 5), ['\'', '/', '.']).replace(/['"]+/g, '');
-          renditions.push(line);
+          indexOfLastSlash = fullurl.lastIndexOf('/');
+          console.log('indexOfLastSlash: ' + indexOfLastSlash);
+          baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
+          manifestUrl = 'http://localhost:9191/' + eventType + '?url=' + baseurl + trimCharacters(line, ['.', '/']);
+          renditions.push(manifestUrl);
+          lines[i] = lines[i].replace(line, manifestUrl);
+          console.log(lines[i]);
         }
       }
     }
@@ -598,10 +607,10 @@ parseMaster = function(request, response, body) {
       //continue;
     }
     else if (lines[i].indexOf('.m3u8') > -1) {
-      var indexOfLastSlash = fullurl.lastIndexOf('/');
+      indexOfLastSlash = fullurl.lastIndexOf('/');
       console.log('indexOfLastSlash: ' + indexOfLastSlash);
       baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
-      var manifestUrl = 'http://localhost:9191/' + eventType + '?url=' + baseurl + trimCharacters(lines[i], ['.', '/']);
+      manifestUrl = 'http://localhost:9191/' + eventType + '?url=' + baseurl + trimCharacters(lines[i], ['.', '/']);
       console.log('manifestUrl: ' + manifestUrl);
       renditions.push(manifestUrl);
       lines[i] = manifestUrl;
