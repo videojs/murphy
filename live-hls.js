@@ -69,24 +69,24 @@ getHeaderObjects = function(fileContent) {
   var lines = fileContent.split('\n'),
     indexOfColon,
     header = {
-    PlaylistType: {
-      tag: '#EXT-X-PLAYLIST-TYPE',
-      value: ''
-    },
-    TargetDuration: {
-      tag: '#EXT-X-TARGETDURATION',
-      value: 0
-    },
-    MediaSequence: {
-      tag: '#EXT-X-MEDIA-SEQUENCE',
-      value: 0
-    },
-    Discontinuity: {
-      tag: '#EXT-X-DISCONTINUITY-SEQUENCE',
-      value: 0
-    },
-    Extra: []
-  };
+      PlaylistType: {
+        tag: '#EXT-X-PLAYLIST-TYPE',
+        value: ''
+      },
+      TargetDuration: {
+        tag: '#EXT-X-TARGETDURATION',
+        value: 0
+      },
+      MediaSequence: {
+        tag: '#EXT-X-MEDIA-SEQUENCE',
+        value: 0
+      },
+      Discontinuity: {
+        tag: '#EXT-X-DISCONTINUITY-SEQUENCE',
+        value: 0
+      },
+      Extra: []
+    };
   for(var i = 0;i<lines.length;i++) {
     indexOfColon = lines[i].indexOf(':');
     if (lines[i].indexOf('#EXTM3U') > -1) {
@@ -601,7 +601,7 @@ parseMaster = function(request, response, body) {
         uriIndex = lines[i].indexOf('URI=');
         if (uriIndex > -1) {
           if (fullurl) {
-          line = trimCharacters(lines[i].substr(uriIndex + 5), ['\'', '/', '.']).replace(/['"]+/g, '').replace(/(\r)/gm,"");
+            line = trimCharacters(lines[i].substr(uriIndex + 5), ['\'', '/', '.']).replace(/['"]+/g, '').replace(/(\r)/gm,"");
             indexOfLastSlash = fullurl.lastIndexOf('/');
             baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
             manifestUrl = 'http://'+request.headers.host + '/' + eventType + '?url=' + baseurl + trimCharacters(line, ['.', '/']);
@@ -758,7 +758,6 @@ event = function(request, response) {
 
 
 redirect = function(request, response) {
-  debugger;
   var redirectKey;
   var indexOfRedirectKey;
   event = extend(getStream('redirect' + request.path), request.query);
