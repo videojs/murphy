@@ -14,17 +14,18 @@ Murphy, the live stream error simulator, will take an HLS VOD playlist and simul
 shifting livestream resource window.  
 
 ## Online manifest
-For external master url point to `http://localhost:9191/master?url=http://localhost:9191/master?url=https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8`.
+For external master url use the master path and the url query parameter like this
+ `http://localhost:9191/master?url=https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8`.
 
-`http://localhost:9191/master?url=http://localhost:9191/master?url=http://localhost:9191/master?url=https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8&event=event`
-It takes an optional argument of event at the end which can point to event or live. The default one is live.
-The live endpoint stream is a sliding window live stream and the event endpoint stream is appending window stream.
+You can also add an optional event parameter which can point to event or live. The default one is live.
+ The live endpoint stream is a sliding window live stream and the event endpoint stream is appending window stream.
+`http://localhost:9191/master?event=event&url=https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8`
+It takes an optional argument of event at the end
 
-For trying an external sliding window single rendition stream point to
+For an external sliding window single rendition stream point to the live path
 `http://localhost:9191/live?url=https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/v2/prog_index.m3u8`
 
-For trying an external appending window single rendition stream point to
-
+For an external appending window single rendition stream point to to the event path
 `http://localhost:9191/event?url=https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/v2/prog_index.m3u8`
 
 
