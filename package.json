@@ -1,7 +1,7 @@
 {
   "name": "@videojs/murphy",
   "description": "Live stream simulator with error injection.",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "author": "mroca",
   "bin": "./murphy",
   "scripts": {
