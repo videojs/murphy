@@ -651,36 +651,20 @@ const master = function(request, response) {
 
   if (fullurl) {
 
-    if (fullurl.indexOf('https') > -1) {
-      https.get(fullurl, res => {
-        res.setEncoding('utf8');
-        var body = '';
+    var req = fullurl.indexOf('https') > -1 ? https : http;
 
-        res.on('data', data => {
-          body += data;
-        });
-        res.on('end', () => {
-          body = body.toString();
-          parseMaster(request, response, body);
-        });
+    req.get(fullurl, res => {
+      res.setEncoding('utf8');
+      var body = '';
+
+      res.on('data', data => {
+        body += data;
       });
-    } else if (fullurl.indexOf('http') > -1) {
-      http.get(fullurl, res => {
-        res.setEncoding('utf8');
-        var body = '';
-
-
-        res.on('data', data => {
-          body += data;
-        });
-        res.on('end', () => {
-          body = body.toString();
-
-          parseMaster(request, response, body);
-        });
+      res.on('end', () => {
+        body = body.toString();
+        parseMaster(request, response, body);
       });
-      return this;
-    }
+    });
   } else {
     fs.readFile(path.join(__dirname, 'master', request.path), function (error, data) {
       if (error) {
@@ -918,33 +902,19 @@ const stream = function(request, response, streamtype) {
 
   if (fullurl) {
 
-    if (fullurl.indexOf('https') > -1) {
-      https.get(fullurl, res => {
-        res.setEncoding('utf8');
-        var body = '';
+    var req = fullurl.indexOf('https') > -1 ? https : http;
+    req.get(fullurl, res => {
+      res.setEncoding('utf8');
+      var body = '';
 
-        res.on('data', data => {
-          body += data;
-        });
-        res.on('end', () => {
-          body = body.toString();
-          getManifestObjects(request, response, body, streamtype, fullurl);
-        });
+      res.on('data', data => {
+        body += data;
       });
-    } else if (fullurl.indexOf('http') > -1) {
-      http.get(fullurl, res => {
-        res.setEncoding('utf8');
-        var body = '';
-
-        res.on('data', data => {
-          body += data;
-        });
-        res.on('end', () => {
-          body = body.toString();
-          getManifestObjects(request, response, body, streamtype, fullurl);
-        });
+      res.on('end', () => {
+        body = body.toString();
+        getManifestObjects(request, response, body, streamtype, fullurl);
       });
-    }
+    });
   } else {
     fs.readFile(path.join(__dirname, 'data', request.path), function (error, data) {
       if (error) {
