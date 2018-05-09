@@ -539,6 +539,7 @@ const parseMaster = function(request, response, body) {
   var manifestUrl;
   var line;
   var indexOfIp;
+  var strm;
 
   if (request.query.event) {
     eventType = request.query.event;
@@ -594,7 +595,6 @@ const parseMaster = function(request, response, body) {
     var urlarr = currentRendition.split('?');
     currentPath = urlarr[0];
     if (!fullurl && urlarr[1]) {
-      let strm;
       let currentQuery = parseQueryString(urlarr[1]);
       strm = extend(getStream(currentPath), currentQuery);
       console.log('start rendition stream: ' + currentPath + ' start: ' + strm.start);
