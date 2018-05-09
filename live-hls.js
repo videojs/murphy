@@ -166,9 +166,9 @@ const getResources = function(fileContent, request, event, baseurl) {
     header = null;
     file = null;
     if (/\.(ts|aac|m4s|mp4|vtt|webvtt)/i.test(lines[i])) {
-
+      
       segment = getSegmentHeader(lines, i, event);
-
+      
       file = lines[i].replace(/(\r)/gm,"");
       if (baseurl && file.indexOf('http') === -1) {
         file = baseurl + file;

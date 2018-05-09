@@ -1,3 +1,7 @@
+# NOTICE
+
+The main murphy repository is now hosted at the following location: https://github.com/videojs/murphy
+
 # murphy
 Proactively making Murphy's law a reality...
 

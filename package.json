@@ -6,7 +6,8 @@
   "bin": "./murphy",
   "scripts": {
     "test": "node ./test/live.test.js",
-    "start": "node murphy"
+    "start": "node murphy",
+    "throttle": "node ./switcher/throttle-server.js ./switcher/network-trace.txt"
   },
   "dependencies": {
     "express": "~3.3.4",
