@@ -93,7 +93,7 @@ test('getResources: Get redirected resource file data', function(t) {
 test('extractResourceWindow: Get live resource window', function(t) {
   var manifestheader, resourceObject, manifest, result, duration, event;
   var request = {path: '/apple/gear4/prog_index.m3u8'};
-  fs.readFile('./data/apple/gear4/prog_index.m3u8', function (error, data) {
+  fs.readFile('./data/maat/bunny/video/video.m3u8', function (error, data) {
     if (error) {
       throw error;
     }
@@ -117,15 +117,15 @@ test('extractResourceWindow: Get live resource window', function(t) {
       tsnotfound: 0,
       manifestnotfound: 0
     };
-    result=livehls.extractResourceWindow(manifest, duration, event);
-    t.equal(result[6], manifest.resources[0].tsfile, 'Match start of resource');
+    result=livehls.extractResourceWindow(manifest, duration, event, 'live');
+    t.equal(result[8], manifest.resources[0].tsfile, 'Match start of resource');
     duration=10000; //10 seconds in the future
-    result=livehls.extractResourceWindow(manifest, duration, event);
-    t.equal(result[6], manifest.resources[1].tsfile,
+    result=livehls.extractResourceWindow(manifest, duration, event, 'live');
+    t.equal(result[8], manifest.resources[1].tsfile,
       'Match start of resource after 10 second duration');
     duration=60000; //60 seconds in the future
-    result=livehls.extractResourceWindow(manifest, duration, event);
-    t.equal(result[6], manifest.resources[6].tsfile,
+    result=livehls.extractResourceWindow(manifest, duration, event, 'live');
+    t.equal(result[8], manifest.resources[6].tsfile,
       'Match start of resource  after 60 second duration');
   });
 

@@ -67,11 +67,11 @@ app.use('/data', liveHls.dataRequest);
 
 app.use('/error', liveHls.injectError);
 
-app.use('/redirect', liveHls.redirect);
+app.use('/redirect', liveHls.redirectFunction);
 
 // simulate live HLS playlists with seeking support for the entire
 // event
-app.use('/event', liveHls.event);
+app.use('/event', liveHls.eventFunction);
 
 // simulate live HLS playlists with limited seeking support,
 // a.k.a. "sliding window"
