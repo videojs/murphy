@@ -94,7 +94,7 @@ const getHeaderObjects = function(fileContent) {
       continue;
     }
 
-    if (/(\.aac|\.webvtt|\.vtt|\.ts|#EXT-X-PROGRAM-DATE-TIME|#EXT-INF|#EXT-X-MAP)/i.test(lines[i])) {
+    if (/(\.aac|\.webvtt|\.vtt|\.ts|#EXT-X-PROGRAM-DATE-TIME|#EXT-INF|#EXT-X-MAP|#EXTINF|EXT-X-BYTERANGE)/i.test(lines[i])) {
       //Breakout because we're no longer in the header
       break;
     }
@@ -556,11 +556,7 @@ const parseMaster = function(request, response, body) {
             line = trimCharacters(lines[i].substr(uriIndex + 5), ['\'', '/', '.']).replace(/['"]+/g, '').replace(/(\r)/gm,"");
             indexOfLastSlash = fullurl.lastIndexOf('/');
             baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
-            if (baseurl.indexOf('http') > -1) {
-              manifestUrl = `http://${request.headers.host}/${eventType}?url=${trimCharacters(line, ['.', '/'])}`;
-            } else {
-              manifestUrl = `http://${request.headers.host}/${eventType}?url=${baseurl + trimCharacters(line, ['.', '/'])}`;
-            }
+            manifestUrl = `http://${request.headers.host}/${eventType}?url=${baseurl + trimCharacters(line, ['.', '/'])}`;
             renditions.push(manifestUrl);
             lines[i] = lines[i].replace(line, manifestUrl);
           } else {
@@ -578,11 +574,7 @@ const parseMaster = function(request, response, body) {
         indexOfLastSlash = fullurl.lastIndexOf('/');
         indexOfIp = fullurl.indexOf('master');
         baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
-        if (baseurl.indexOf('http') > -1) {
-          manifestUrl = `http://${request.headers.host}/${eventType}?url=${trimCharacters(lines[i], ['.', '/'])}`;
-        } else {
-          manifestUrl = `http://${request.headers.host}/${eventType}?url=${baseurl + trimCharacters(lines[i], ['.', '/'])}`;
-        }
+        manifestUrl = `http://${request.headers.host}/${eventType}?url=${baseurl + trimCharacters(lines[i], ['.', '/'])}`;
         debuglog('manifestUrl: ' + manifestUrl);
         renditions.push(manifestUrl);
         lines[i] = manifestUrl;
