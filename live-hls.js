@@ -94,7 +94,7 @@ const getHeaderObjects = function(fileContent) {
       continue;
     }
 
-    if (/(\.aac|\.webvtt|\.vtt|\.ts|#EXT-X-PROGRAM-DATE-TIME|#EXT-INF|#EXT-X-MAP|#EXTINF|EXT-X-BYTERANGE)/i.test(lines[i])) {
+    if (/(\.aac|\.webvtt|\.vtt|\.ts|#EXT-X-PROGRAM-DATE-TIME|#EXT-INF|#EXT-X-MAP|#EXTINF|#EXT-X-BYTERANGE)/i.test(lines[i])) {
       //Breakout because we're no longer in the header
       break;
     }
