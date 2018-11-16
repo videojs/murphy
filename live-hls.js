@@ -10,6 +10,8 @@ const url = require('url');
 const express = require('express');
 const https = require('https');
 const http = require('http');
+const qs = require('querystring');
+
 var streams = {};
 var debug = 1;
 var defaults = {
@@ -502,20 +504,9 @@ const stopAllStreams = function() {
   }
 };
 
-const parseQueryString = function( queryString ) {
-  var params = {}, queries, temp, i, l;
-
-  // Split into key/value pairs
-  queries = queryString.split("&amp;");
-
-  // Convert the array of strings into an object
-  for ( i = 0, l = queries.length; i < l; i++ ) {
-    temp = queries[i].split('=');
-    params[temp[0]] = temp[1];
-  }
-
-  return params;
-};
+const parseQueryString = function(queryString) {
+  return qs.parse(queryString);
+}
 
 /**
  *  ParseMaster parses the master manifest and creates a murphy stream for each rendition and starts each rendition at the same time.
