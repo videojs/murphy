@@ -323,7 +323,7 @@ const extractResourceWindow = function(mfest, duration, event, streamtype) {
   startposition = Math.floor((duration * 0.001) / event.rate);
 
   debuglog('start before mod ' + startposition);
-  debuglog('event start '+event.start);
+  debuglog('event start ' + event.start);
 
   event.discontinuity = Math.floor(startposition / resource.length);
   event.dropped = startposition;
@@ -334,7 +334,7 @@ const extractResourceWindow = function(mfest, duration, event, streamtype) {
 
   if (streamtype === 'live') {
     startposition = startposition % resource.length;
-    endposition = startposition + event.window-1;
+    endposition = startposition + event.window - 1;
     if (event.lastStartPosition < startposition) {
       debuglog('dropped: ' + event.dropped);
     }
@@ -428,9 +428,9 @@ const filterPlaylist = function(playlist, time, options) {
   var overflow = 0;
   var lines = playlist.split('\n');
 
-  options.init=getInitialValue(lines);
+  options.init = getInitialValue(lines);
   // the number of the time-varying lines to be shown
-  var temptime=(time*0.001);
+  var temptime = (time * 0.001);
 
 
   startposition = options.init + Math.floor(temptime / options.rate);
@@ -475,9 +475,9 @@ const filterPlaylist = function(playlist, time, options) {
 
   if (overflow > 0) {
     debuglog('overflow: ' + overflow);
-    filteredLines[filteredLines.length-1] += '\n#EXT-X-DISCONTINUITY';
+    filteredLines[filteredLines.length - 1] += '\n#EXT-X-DISCONTINUITY';
     event.discontinuity++;
-    debuglog(filteredLines[filteredLines.length-1]);
+    debuglog(filteredLines[filteredLines.length - 1]);
     filteredLines = filteredLines.concat(lines.slice(options.init, options.init + overflow));
     overflow = 0;
   }
