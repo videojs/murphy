@@ -10,6 +10,8 @@ const url = require('url');
 const express = require('express');
 const https = require('https');
 const http = require('http');
+const qs = require('querystring');
+
 var streams = {};
 var debug = 1;
 var defaults = {
@@ -66,7 +68,8 @@ const getHeaderObjects = function(fileContent) {
       },
       Extra: []
     };
-  for(var i = 0;i<lines.length;i++) {
+
+  for(var i = 0; i < lines.length; i++) {
     indexOfColon = lines[i].indexOf(':');
     if (lines[i].indexOf('#EXTM3U') > -1) {
       header.Firstline = '#EXTM3U';
@@ -113,6 +116,7 @@ const getSegmentHeader = function(lines, index, event) {
     datetime='',
     segment,
     segmentDuration=0;
+
   for(i = (index - 1); i > 0; i--) {
     //Search backwards from index to get all header lines
     if (lines[i].indexOf('EXT-X-PROGRAM-DATE-TIME') > -1) {
@@ -136,12 +140,15 @@ const getSegmentHeader = function(lines, index, event) {
   segment = {
     tsfile: lines[index]
   };
-  if (byterange!='') {
-    segment.byterange=byterange;
+
+  if (byterange != '') {
+    segment.byterange = byterange;
   }
-  if (header!='') {
-    segment.header=header;
+
+  if (header != '') {
+    segment.header = header;
   }
+
   if (datetime != '') {
     console.log('assign segment.datetime');
     segment.datetime = datetime;
@@ -162,29 +169,37 @@ const getResources = function(fileContent, request, event, baseurl) {
     prepend_redirectFile = '',
     i,
     j;
-  for (i = 0;i < lines.length;i++) {
+
+  for (i = 0; i < lines.length; i++) {
     header = null;
     file = null;
+
     if (/\.(ts|aac|m4s|mp4|vtt|webvtt)/i.test(lines[i])) {
       
       segment = getSegmentHeader(lines, i, event);
       
       file = lines[i].replace(/(\r)/gm,"");
+
       if (baseurl && file.indexOf('http') === -1) {
         file = baseurl + file;
       }
+
       if (file.indexOf('http') === 0) {
         arr = file.split('.');
+
         if (arr.length > 1) {
           ext = arr[arr.length - 1];
         }
+
         if (request.path) {
           reqpathmod = request.path.substr(0, request.path.lastIndexOf('/') + 1);
         } else {
           reqpathmod = request.query.url.substr(0, request.query.url.lastIndexOf('/') + 1);
         }
+
         debuglog(reqpathmod);
         debuglog('request path: ' + request.path);
+
         if (baseurl) {
           var indexOfhttp = baseurl.indexOf('//') + 2;
 
@@ -193,14 +208,17 @@ const getResources = function(fileContent, request, event, baseurl) {
         } else if (request.path) {
           redirectFile = 'redirect' + reqpathmod + redirectCount + '.' + ext;
         }
+
         redirectCount++;
         redirect[redirectFile] = file;
         debuglog('save redirect: ' + redirectFile + ' - ' + file);
+
         if (!baseurl) {
           for (j = 0; j < reqpathmod.split('/').length - 1; j++) {
             prepend_redirectFile = prepend_redirectFile + '../';
           }
         }
+
         file = prepend_redirectFile + redirectFile;
         prepend_redirectFile = '';
         debuglog('file: ' + file);
@@ -214,7 +232,8 @@ const getResources = function(fileContent, request, event, baseurl) {
 
 const getInitialValue = function(allLines) {
   var i;
-  for (i = 0;i<allLines.length;i++) {
+
+  for (i = 0; i < allLines.length; i++) {
     if (allLines[i].indexOf('#EXTINF')>-1) {
       return i;
     }
@@ -223,13 +242,14 @@ const getInitialValue = function(allLines) {
 
 const cleanup = function(fileContent) {
   var lines = fileContent.split('\n');
-  for (var i = 0;i<lines.length;i++) {
+
+  for (var i = 0; i < lines.length; i++) {
     if (lines[i].indexOf('TOTAL-DURATION') > -1) {
       debuglog('delete line: ' + lines[i]);
       lines.splice(i, 1);
     }
-    if (lines[i].indexOf('#EXT-X-ENDLIST') === 0 || lines[i] == '')
-    {
+
+    if (lines[i].indexOf('#EXT-X-ENDLIST') === 0 || lines[i] == '') {
       debuglog('delete line: ' + lines[i]);
       lines.splice(i, 1);
     }
@@ -240,40 +260,50 @@ const cleanup = function(fileContent) {
 const extractHeader = function(header, event, streamtype) {
   var lines = [];
   lines.push(header.Firstline);
+
   if (header.PlaylistType) {
     lines.push(header.PlaylistType.tag + ':' + streamtype);
   }
+
   if (header.TargetDuration) {
     lines.push(header.TargetDuration.tag + ':' + header.TargetDuration.value);
   }
+
   if (header.MediaSequence) {
     lines.push(header.MediaSequence.tag + ':' + event.dropped);
   }
+
   if (header.Discontinuity) {
     lines.push(header.Discontinuity.tag + ':' + event.discontinuity);
   }
+
   if (header.Extra) {
     for(var i = 0;i<header.Extra.length;i++) {
       lines.push(header.Extra[i]);
     }
   }
+
   return lines;
 };
 
 const calculateDatetime = function(event, resource, i) {
   var currentDateTime;
   var DateObject;
+
   currentDateTime = resource[i].datetime.split('TIME:')[1];
   DateObject = new Date(currentDateTime);
-  //Determine if the stream has looped yet
-  if (event.dropped > (resource.length-event.window)) {
-    //Adjust datetime according to the number of loops have occurred.
+
+  // Determine if the stream has looped yet
+  if (event.dropped > (resource.length - event.window)) {
+    // Adjust datetime according to the number of loops have occurred.
     if (event.calculatedDuration > 0) {
-      //If we have values based on EXTINF, use the sum of all EXTINF to calculate loop
+      // If we have values based on EXTINF, use the sum of all EXTINF to calculate loop
       DateObject.setSeconds(DateObject.getSeconds() + event.calculatedDuration);
     } else {
-      //If we don't have values based on EXTINF, use targetDuration (which event.rate is based on) to calculate loop
-      DateObject.setSeconds(DateObject.getSeconds() + (Math.floor((event.dropped + event.window)/resource.length)*event.window)*event.rate);
+      // If we don't have values based on EXTINF, use targetDuration (which event.rate is based on) to calculate loop
+      var delta = (Math.floor((event.dropped + event.window) / resource.length)
+                    * event.window) * event.rate;
+      DateObject.setSeconds(DateObject.getSeconds() + delta);
     }
   }
   debuglog('#EXT-X-PROGRAM-DATE-TIME:' + DateObject.toISOString());
@@ -288,54 +318,65 @@ const extractResourceWindow = function(mfest, duration, event, streamtype) {
   var resource = mfest.resources;
   var lines;
   var i;
+
   streamtype = streamtype || 'live';
   startposition = Math.floor((duration * 0.001) / event.rate);
+
   debuglog('start before mod ' + startposition);
-  debuglog('event start '+event.start);
-  event.discontinuity=Math.floor(startposition/resource.length);
-  event.dropped=startposition;
-  if (event.dropped<0) {
-    event.dropped=0;
+  debuglog('event start ' + event.start);
+
+  event.discontinuity = Math.floor(startposition / resource.length);
+  event.dropped = startposition;
+
+  if (event.dropped < 0) {
+    event.dropped = 0;
   }
+
   if (streamtype === 'live') {
     startposition = startposition % resource.length;
-    endposition = startposition + event.window-1;
-    if (event.lastStartPosition<startposition) {
+    endposition = startposition + event.window - 1;
+    if (event.lastStartPosition < startposition) {
       debuglog('dropped: ' + event.dropped);
     }
   } else {
     startposition = 0;
-    //start at a 3 segment buffer to end position
+    // start at a 3 segment buffer to end position
     endposition = Math.floor((duration * 0.001) / event.rate);
   }
 
   if (endposition >= resource.length) {
     debuglog('endposition before mod: ' + endposition);
     overflow = endposition - (resource.length - 1);
-
     endposition = resource.length - 1;
   }
+
   debuglog('startposition: ' + startposition);
   debuglog('endposition: ' + endposition);
   debuglog('overflow: ' + overflow);
   debuglog('resource length: ' + resource.length);
   debuglog('rate: ' + event.rate);
-  lines=extractHeader(header, event, streamtype);
+
+  lines = extractHeader(header, event, streamtype);
+
   for(i = startposition; i <= endposition; i++) {
     if (resource[i].header) {
       lines.push(resource[i].header);
     }
+
     if (resource[i].datetime) {
       lines.push('#EXT-X-PROGRAM-DATE-TIME:' + calculateDatetime(event, resource, i));
     }
+
     if (resource[i].byterange) {
       lines.push(resource[i].byterange);
     }
+
     if (resource[i].tsfile) {
       lines.push(resource[i].tsfile);
     }
   }
-  if (overflow>0) {
+
+  if (overflow > 0) {
     if (streamtype === 'live') {
       for (i = 0; i < overflow; i++) {
         var referencedResource = i % resource.length;
@@ -343,15 +384,19 @@ const extractResourceWindow = function(mfest, duration, event, streamtype) {
         if (referencedResource === 0) {
           lines.push('#EXT-X-DISCONTINUITY');
         }
+
         if (resource[referencedResource].header) {
           lines.push(resource[referencedResource].header);
         }
+
         if (resource[referencedResource].datetime) {
           lines.push('#EXT-X-PROGRAM-DATE-TIME:' + calculateDatetime(event, resource, i));
         }
+
         if (resource[referencedResource].byterange) {
           lines.push(resource[referencedResource].byterange);
         }
+
         if (resource[referencedResource].tsfile) {
           lines.push(resource[referencedResource].tsfile);
         }
@@ -383,13 +428,14 @@ const filterPlaylist = function(playlist, time, options) {
   var overflow = 0;
   var lines = playlist.split('\n');
 
-  options.init=getInitialValue(lines);
+  options.init = getInitialValue(lines);
   // the number of the time-varying lines to be shown
-  var temptime=(time*0.001);
+  var temptime = (time * 0.001);
 
 
-  startposition = options.init+Math.floor(temptime / options.rate);
-  options.dropped=startposition;
+  startposition = options.init + Math.floor(temptime / options.rate);
+  options.dropped = startposition;
+
   debuglog('init: ' + options.init);
   debuglog('time * 0.001 = ' + temptime);
   debuglog('options.rate: ' + options.rate);
@@ -398,15 +444,20 @@ const filterPlaylist = function(playlist, time, options) {
   debuglog(startposition == options.init);
 
   startposition = startposition - (startposition % options.step);
-  if (startposition<options.init) startposition = options.init+1;
-  debuglog('startposition' + startposition + '%' + options.step + ' = ' + (startposition%options.step));
-  if ((startposition%options.step) == 0) {
+  if (startposition < options.init)
+    startposition = options.init + 1;
+
+  debuglog('startposition' + startposition + '%' + options.step + ' = ' + (startposition % options.step));
+
+  if ((startposition % options.step) == 0) {
     debuglog('dropped: ' + options.dropped);
   }
+
   debuglog('((startposition' + startposition + '-event.init' + options.init +
     ') % (lines.length' + lines.length + '-event.init' + options.init + ')) + ' +
     'event.init'+options.init+' = ');
-  startposition = ((startposition-options.init) % (lines.length-options.init)) + options.init + 1;
+
+  startposition = ((startposition - options.init) % (lines.length - options.init)) + options.init + 1;
 
 
   endposition = startposition + options.window;
@@ -415,19 +466,22 @@ const filterPlaylist = function(playlist, time, options) {
   debuglog('endposition: ' + endposition);
 
   var filteredLines = lines.slice(0, options.init);
-  if (endposition>lines.length) {
-    overflow = endposition-lines.length;
+  if (endposition > lines.length) {
+    overflow = endposition - lines.length;
     debuglog('overflow: ' + overflow);
   }
+
   filteredLines = filteredLines.concat(lines.slice(startposition, endposition));
-  if (overflow>0) {
+
+  if (overflow > 0) {
     debuglog('overflow: ' + overflow);
-    filteredLines[filteredLines.length-1] += '\n#EXT-X-DISCONTINUITY';
+    filteredLines[filteredLines.length - 1] += '\n#EXT-X-DISCONTINUITY';
     event.discontinuity++;
-    debuglog(filteredLines[filteredLines.length-1]);
+    debuglog(filteredLines[filteredLines.length - 1]);
     filteredLines = filteredLines.concat(lines.slice(options.init, options.init + overflow));
     overflow = 0;
   }
+
   options.counter++;
   return filteredLines.join('\n');
 };
@@ -438,14 +492,17 @@ const ui = function(request, response) {
     if (error) {
       return response.send(404, error);
     }
+
     result = data.toString();
+
     for (key in streams) {
-      if (key.indexOf('.m3u8') >-1 ) {
+      if (key.indexOf('.m3u8') > -1) {
         button = '<td><button onclick=\"injectError(\'../'+key.replace('live', 'error')+'?errorcode=1\')\">errortext</button></td>';
         rows += '<tr><td>' + key + '</td>'+
           button.replace('errorcode', 'tsNotFound').replace('errortext','ts404') +
           button.replace('errorcode', 'manifestnotfound').replace('errortext','manifest404') + '</tr>\n';
       }
+
       if (/\.(ts|aac|m4s|mp4|vtt|webvtt)/i.test(key)) {
         resources += '<tr><td>' + key + '</td></tr>';
       }
@@ -474,6 +531,7 @@ const getStream = function(name) {
     }, defaults);
     streams[name] = stream;
   }
+
   return stream;
 };
 
@@ -502,20 +560,9 @@ const stopAllStreams = function() {
   }
 };
 
-const parseQueryString = function( queryString ) {
-  var params = {}, queries, temp, i, l;
-
-  // Split into key/value pairs
-  queries = queryString.split("&amp;");
-
-  // Convert the array of strings into an object
-  for ( i = 0, l = queries.length; i < l; i++ ) {
-    temp = queries[i].split('=');
-    params[temp[0]] = temp[1];
-  }
-
-  return params;
-};
+const parseQueryString = function(queryString) {
+  return qs.parse(queryString);
+}
 
 /**
  *  ParseMaster parses the master manifest and creates a murphy stream for each rendition and starts each rendition at the same time.
@@ -546,6 +593,7 @@ const parseMaster = function(request, response, body) {
   } else {
     eventType = 'live';
   }
+
   for (i = 0; i < lines.length; i++) {
     if (lines[i].indexOf('EXT-X-MEDIA') > -1) {
       if (lines[i].indexOf('TYPE=AUDIO') > -1 ||
@@ -567,7 +615,7 @@ const parseMaster = function(request, response, body) {
       }
     }
     else if (lines[i].indexOf('EXT') > -1) {
-      //continue;
+      // continue;
     }
     else if (lines[i].indexOf('.m3u8') > -1) {
       if (fullurl) {
@@ -590,7 +638,7 @@ const parseMaster = function(request, response, body) {
       resetLiveStream(renditions[i]);
     }
 
-    //Ensure stream starts simultaneously with other renditions
+    // Ensure stream starts simultaneously with other renditions
     currentRendition = renditions[i];
     var urlarr = currentRendition.split('?');
     currentPath = urlarr[0];
@@ -715,16 +763,17 @@ const dataRequest = function(request, response) {
   event = extend(getStream('data' + request.path), request.query);
 
   //Filter out url variables
-  if (request.originalUrl.toString().indexOf('?')>-1) {
+  if (request.originalUrl.toString().indexOf('?') > -1) {
     pathname = request.originalUrl.toString().slice(0, request.originalUrl.toString().indexOf('?'));
-  }
-  else {
+  } else {
     pathname = request.originalUrl.toString();
   }
+
   if (processErrors(request, response, event) == true) {
     console.log('errors processed tsNotFound=' + event.tsNotFound);
     return response;
   }
+
   debuglog(path.join(__dirname, 'data', request.path));
 
   var fileStream = fs.createReadStream(path.join(__dirname, pathname));
