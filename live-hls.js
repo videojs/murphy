@@ -175,9 +175,9 @@ const getResources = function(fileContent, request, event, baseurl) {
     file = null;
 
     if (/\.(ts|aac|m4s|mp4|vtt|webvtt)/i.test(lines[i])) {
-      
+
       segment = getSegmentHeader(lines, i, event);
-      
+
       file = lines[i].replace(/(\r)/gm,"");
 
       if (baseurl && file.indexOf('http') === -1) {
@@ -570,7 +570,7 @@ const parseQueryString = function(queryString) {
 
  */
 
-const parseMaster = function(request, response, body) {
+const parseMaster = function(request, response, body, isHttps) {
   var result = body.toString();
   var lines = result.split('\n');
   var fullurl = request.query.url;
@@ -594,6 +594,11 @@ const parseMaster = function(request, response, body) {
     eventType = 'live';
   }
 
+  var protocol = 'http';
+  if (isHttps) {
+    protocol = 'https';
+  }
+
   for (i = 0; i < lines.length; i++) {
     if (lines[i].indexOf('EXT-X-MEDIA') > -1) {
       if (lines[i].indexOf('TYPE=AUDIO') > -1 ||
@@ -604,7 +609,7 @@ const parseMaster = function(request, response, body) {
             line = trimCharacters(lines[i].substr(uriIndex + 5), ['\'', '/', '.']).replace(/['"]+/g, '').replace(/(\r)/gm,"");
             indexOfLastSlash = fullurl.lastIndexOf('/');
             baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
-            manifestUrl = `http://${request.headers.host}/${eventType}?url=${baseurl + trimCharacters(line, ['.', '/'])}`;
+            manifestUrl = `${protocol}://${request.headers.host}/${eventType}?url=${baseurl + trimCharacters(line, ['.', '/'])}`;
             renditions.push(manifestUrl);
             lines[i] = lines[i].replace(line, manifestUrl);
           } else {
@@ -622,7 +627,7 @@ const parseMaster = function(request, response, body) {
         indexOfLastSlash = fullurl.lastIndexOf('/');
         indexOfIp = fullurl.indexOf('master');
         baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
-        manifestUrl = `http://${request.headers.host}/${eventType}?url=${baseurl + trimCharacters(lines[i], ['.', '/'])}`;
+        manifestUrl = `${protocol}://${request.headers.host}/${eventType}?url=${baseurl + trimCharacters(lines[i], ['.', '/'])}`;
         debuglog('manifestUrl: ' + manifestUrl);
         renditions.push(manifestUrl);
         lines[i] = manifestUrl;
@@ -699,7 +704,8 @@ const master = function(request, response) {
 
   if (fullurl) {
 
-    var req = fullurl.indexOf('https') > -1 ? https : http;
+    var isHttps = fullurl.indexOf('https') > -1;
+    var req = isHttps ? https : http;
 
     req.get(fullurl, res => {
       res.setEncoding('utf8');
@@ -710,7 +716,7 @@ const master = function(request, response) {
       });
       res.on('end', () => {
         body = body.toString();
-        parseMaster(request, response, body);
+        parseMaster(request, response, body, isHttps);
       });
     });
   } else {
@@ -718,7 +724,7 @@ const master = function(request, response) {
       if (error) {
         return response.send(404, error);
       }
-      parseMaster(request, response, data);
+      parseMaster(request, response, data, isHttps);
     });
   }
 };
