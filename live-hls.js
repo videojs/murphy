@@ -222,7 +222,7 @@ const getResources = function(fileContent, request, event, baseurl) {
         file = prepend_redirectFile + redirectFile;
         prepend_redirectFile = '';
         debuglog('file: ' + file);
-        segment.tsfile=file;
+        segment.tsfile = file;
       }
       resource.push(segment);
     }
@@ -278,7 +278,7 @@ const extractHeader = function(header, event, streamtype) {
   }
 
   if (header.Extra) {
-    for(var i = 0;i<header.Extra.length;i++) {
+    for(var i = 0; i < header.Extra.length; i++) {
       lines.push(header.Extra[i]);
     }
   }
@@ -608,16 +608,14 @@ const parseMaster = function(request, response, body) {
             renditions.push(manifestUrl);
             lines[i] = lines[i].replace(line, manifestUrl);
           } else {
-            line=trimCharacters(lines[i].substr(uriIndex+5), ['\'', '/', '.']).replace(/['"]+/g, '');
+            line = trimCharacters(lines[i].substr(uriIndex + 5), ['\'', '/', '.']).replace(/['"]+/g, '');
             renditions.push(line);
           }
         }
       }
-    }
-    else if (lines[i].indexOf('EXT') > -1) {
+    } else if (lines[i].indexOf('EXT') > -1) {
       // continue;
-    }
-    else if (lines[i].indexOf('.m3u8') > -1) {
+    } else if (lines[i].indexOf('.m3u8') > -1) {
       if (fullurl) {
         indexOfLastSlash = fullurl.lastIndexOf('/');
         indexOfIp = fullurl.indexOf('master');
@@ -630,7 +628,8 @@ const parseMaster = function(request, response, body) {
         renditions.push(trimCharacters(lines[i], ['.','/']));
       }
     }
-    rebuiltResult = rebuiltResult + lines[i] + '\n';
+
+    rebuiltResult += lines[i] + '\n';
   }
 
   for (i = 0; i < renditions.length; i++) {
@@ -640,16 +639,17 @@ const parseMaster = function(request, response, body) {
 
     // Ensure stream starts simultaneously with other renditions
     currentRendition = renditions[i];
+
     var urlarr = currentRendition.split('?');
     currentPath = urlarr[0];
+
     if (!fullurl && urlarr[1]) {
       let currentQuery = parseQueryString(urlarr[1]);
       strm = extend(getStream(currentPath), currentQuery);
       console.log('start rendition stream: ' + currentPath + ' start: ' + strm.start);
       strm = extend(getStream(renditions[i]), currentQuery);
       console.log('start rendition stream: ' + renditions[i] + ' start: ' + strm.start);
-    }
-    else {
+    } else {
       console.log('start rendition stream: ' + renditions[i]);
       strm = getStream(renditions[i]);
       console.log('start rendition stream: ' + renditions[i] + ' start: ' + strm.start);
@@ -741,16 +741,21 @@ const eventFunction = function(request, response) {
 const redirectFunction = function(request, response) {
   var redirectKey;
   var indexOfRedirectKey;
+
   event = extend(getStream('redirect' + request.path), request.query);
+
   redirectKey = 'redirect' + request.path;
   debuglog(redirectKey + ' - ' + redirect[redirectKey]);
+
   if (processErrors(request, response, event) == true) {
     console.log('errors processed tsNotFound=' + event.tsNotFound);
     return response;
   }
+
   response.writeHead(301,
     {Location: redirect[redirectKey]}
   );
+
   response.end();
 };
 
@@ -795,12 +800,14 @@ const processErrors = function(request, response, event) {
     response.status(404).send('not found');
     return true;
   }
+
   if (event.manifestnotfound>0 && request.path.indexOf('.m3u8') > -1) {
     event.manifestnotfound--;
     console.log('send manifest 404');
     response.status(404).send('not found');
     return true;
   }
+
   if (event.resetStream > 0) {
     //1 - Reset just this stream
     if (event.resetStream === 1) {
@@ -811,6 +818,7 @@ const processErrors = function(request, response, event) {
       resetAllStreams();
     }
   }
+
   if (event.stopStream > 0) {
     //1 - Stop just this stream
 
@@ -822,6 +830,7 @@ const processErrors = function(request, response, event) {
       stopAllStreams();
     }
   }
+
   return false;
 };
 
@@ -862,18 +871,22 @@ const getManifestObjects = function (request, response, body, streamtype, fullur
     var indexOfLastSlash = fullurl.lastIndexOf('/');
     baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
   }
+
   const streampath = baseurl ? fullurl : streamtype + request.path;
 
   console.log('streampath: ' + streampath);
   event = extend(getStream(streampath), request.query);
+
   renditionName = streampath.match(/.*\/(.+).m3u8/i)[1];
   console.log('renditionName: ' + streampath);
+
   if (!event.sequenceOffsets[renditionName]) {
     event.sequenceOffsets[renditionName] = Math.floor(Math.random() * 50);
   }
-  duration = Date.now() - event.start;
-  if (manifest[streampath] === undefined) {
 
+  duration = Date.now() - event.start;
+
+  if (manifest[streampath] === undefined) {
     playlist = body.toString().replace(/(\r)/gm,""); //old data
     console.log('playlist: ' + playlist);
     manifestHeader = getHeaderObjects(playlist);
@@ -918,6 +931,7 @@ const getManifestObjects = function (request, response, body, streamtype, fullur
     }
     event.tsNotFound--;
   }
+
   if (event.manifestnotfound > 0) {
     if (processErrors(request, response, event) == true) {
       console.log('errors processed manifestnotfound=' + event.manifestnotfound);
