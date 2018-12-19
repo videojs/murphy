@@ -413,6 +413,10 @@ const extractResourceWindow = function(mfest, duration, event, streamtype) {
           lines.push('#EXT-X-DISCONTINUITY');
         }
 
+        if (resource[i].disco) {
+          lines.push(resource[i].disco);
+        }
+
         if (resource[referencedResource].header) {
           lines.push(resource[referencedResource].header);
         }
