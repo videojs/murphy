@@ -349,7 +349,7 @@ const extractResourceWindow = function(mfest, duration, event, streamtype) {
   }
 
 
-  event.discontinuity = Math.floor(startposition / resource.length) + event.discomod;
+  event.discontinuity = Math.floor(startposition / (resource.length + 1)) + event.discomod;
   console.log('(start:' + startposition + '/ rlength:' + resource.length + ') + event.discomod:' + event.discomod);
   console.log(event.discontinuity);
   event.dropped = startposition;
@@ -392,6 +392,10 @@ const extractResourceWindow = function(mfest, duration, event, streamtype) {
       lines.push(resource[i].disco);
     }
 
+    // if (startposition == 0 && event.dropped > resource.length) {
+    //   lines.push('#EXT-X-DISCONTINUITY');
+    // }
+
     if (resource[i].header) {
       lines.push(resource[i].header);
     }
@@ -415,7 +419,7 @@ const extractResourceWindow = function(mfest, duration, event, streamtype) {
         var referencedResource = i % resource.length;
 
         if (referencedResource === 0) {
-          lines.push('#EXT-X-DISCONTINUITY');
+          resource[i].disco = '#EXT-X-DISCONTINUITY';
         }
 
         if (resource[i].disco) {
