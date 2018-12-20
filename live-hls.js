@@ -343,10 +343,15 @@ const extractResourceWindow = function(mfest, duration, event, streamtype) {
 
   event.discomod = 0;
   for (i = 0; i < event.discotrack.length; i++) {
-    event.discomod += Math.floor((startposition + resource.length - 1) / (resource.length + event.discotrack[i]) );
+    let rlength = resource.length - 1;
+    event.discomod += Math.floor((startposition + resource.length - 1 - event.discotrack[i]) / (resource.length) );
+    console.log('start: ' + startposition + ' + rlength: ' + resource.length + '-1 / rlength: ' + resource.length + 'disco: ' + event.discotrack[i] +' = ' +event.discomod);
   }
 
+
   event.discontinuity = Math.floor(startposition / resource.length) + event.discomod;
+  console.log('(start:' + startposition + '/ rlength:' + resource.length + ') + event.discomod:' + event.discomod);
+  console.log(event.discontinuity);
   event.dropped = startposition;
 
   if (event.dropped < 0) {
