@@ -349,7 +349,7 @@ const extractResourceWindow = function(mfest, duration, event, streamtype) {
   }
 
 
-  event.discontinuity = Math.floor((startposition + 1) / (resource.length)) + event.discomod;
+  event.discontinuity = Math.floor((startposition === 0 ? startposition : (startposition - 1)) / (resource.length)) + event.discomod;
   console.log('(start:' + startposition + '/ rlength:' + resource.length + ') + event.discomod:' + event.discomod);
   console.log(event.discontinuity);
   event.dropped = startposition;
