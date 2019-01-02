@@ -13,7 +13,7 @@ const http = require('http');
 const qs = require('querystring');
 
 var streams = {};
-var debug = 1;
+var debug = 0;
 var defaults = {
   // seconds per resource, defaults to target duration if no override
   // rate: 10,
@@ -175,9 +175,9 @@ const getResources = function(fileContent, request, event, baseurl) {
     file = null;
 
     if (/\.(ts|aac|m4s|mp4|vtt|webvtt)/i.test(lines[i])) {
-      
+
       segment = getSegmentHeader(lines, i, event);
-      
+
       file = lines[i].replace(/(\r)/gm,"");
 
       if (baseurl && file.indexOf('http') === -1) {
@@ -497,7 +497,17 @@ const ui = function(request, response) {
 
     for (key in streams) {
       if (key.indexOf('.m3u8') > -1) {
-        button = '<td><button onclick=\"injectError(\'../'+key.replace('live', 'error')+'?errorcode=1\')\">errortext</button></td>';
+        let streamPath;
+
+        if (key.indexOf('http') > -1) {
+          // this is a remote stream
+          streamPath = `../error/${key}`;
+        } else {
+          // local stream
+          streamPath = `../${key.replace('live', 'error')}`;
+        }
+
+        button = '<td><button onclick="injectError(\''+streamPath+'?errorcode=1\')">errortext</button></td>';
         rows += '<tr><td>' + key + '</td>'+
           button.replace('errorcode', 'tsNotFound').replace('errortext','ts404') +
           button.replace('errorcode', 'manifestnotfound').replace('errortext','manifest404') + '</tr>\n';
@@ -794,14 +804,17 @@ const dataRequest = function(request, response) {
 
 
 const processErrors = function(request, response, event) {
-  if (event.tsNotFound > 0 && request.path.indexOf('.ts') > -1) {
+  // when remote url in use, there is no path and url is instead in query string
+  const requestPath = request.path ? request.path : request.query.url;
+
+  if (event.tsNotFound > 0 && requestPath.indexOf('.ts') > -1) {
     event.tsNotFound--;
     console.log('send ts 404');
     response.status(404).send('not found');
     return true;
   }
 
-  if (event.manifestnotfound>0 && request.path.indexOf('.m3u8') > -1) {
+  if (event.manifestnotfound>0 && requestPath.indexOf('.m3u8') > -1) {
     event.manifestnotfound--;
     console.log('send manifest 404');
     response.status(404).send('not found');
@@ -811,7 +824,7 @@ const processErrors = function(request, response, event) {
   if (event.resetStream > 0) {
     //1 - Reset just this stream
     if (event.resetStream === 1) {
-      resetLiveStream('live' + request.path);
+      resetLiveStream('live' + requestPath);
     }
     //2 - Reset all streams
     if (event.resetStream === 2) {
@@ -823,7 +836,7 @@ const processErrors = function(request, response, event) {
     //1 - Stop just this stream
 
     if (event.stopStream === 1) {
-      stopLiveStream('live' + request.path);
+      stopLiveStream('live' + requestPath);
     }
     //2 - Stop all streams
     if (event.stopStream === 2) {
@@ -838,7 +851,14 @@ const processErrors = function(request, response, event) {
  * Injects error into an existing stream.
  */
 const injectError = function(request, response) {
-  var streamname='live' + request.path;
+  // remove the leading slash
+  var streamname = request.path.slice(1);
+
+  if (request.path.indexOf('http') === -1) {
+    // local asset so we need to point to add live/ to the stream name
+    streamname = 'live/' + streamname;
+  }
+
   event = extend(getStream(streamname), request.query);
   console.log('tsNotFound in ' + streamname + ' = ' + event.tsNotFound);
   return response.send(200, 'injected into ' + streamname);
