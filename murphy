@@ -79,7 +79,13 @@ app.use('/event', liveHls.eventFunction);
 app.use('/live', liveHls.live);
 
 app.get('/crossdomain.xml', function(req, res) {
-  res.sendFile(path.join(__dirname, 'crossdomain.xml'));
+  fs.readFile(path.join(__dirname, 'crossdomain.xml'), function(error, data) {
+    if (error) {
+      return res.send(404, error);
+    }
+
+    res.send(data);
+  });
 });
 
 http.createServer(app).listen(murphyPort, function() {
