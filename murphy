@@ -84,6 +84,7 @@ app.get('/crossdomain.xml', function(req, res) {
       return res.send(404, error);
     }
 
+    res.set('Content-Type', 'application/xml');
     res.send(data);
   });
 });
