@@ -78,7 +78,7 @@ app.use('/event', liveHls.eventFunction);
 // a.k.a. "sliding window"
 app.use('/live', liveHls.live);
 
-app.get('/crossdomain.xml'. function(req, res) {
+app.get('/crossdomain.xml', function(req, res) {
   res.sendFile(path.join(__dirname, 'crossdomain.xml'));
 });
 
