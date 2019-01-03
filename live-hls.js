@@ -343,12 +343,12 @@ const extractResourceWindow = function(mfest, duration, event, streamtype) {
 
   event.discomod = 0;
   for (i = 0; i < event.discotrack.length; i++) {
-    let rlength = resource.length - 1;
+    // Each disco in the vod should cause the disco sequence to increment for each manifest loop
     event.discomod += Math.floor((startposition + resource.length - 1 - event.discotrack[i]) / (resource.length) );
-    console.log('start: ' + startposition + ' + rlength: ' + resource.length + '-1 / rlength: ' + resource.length + 'disco: ' + event.discotrack[i] +' = ' +event.discomod);
   }
 
-
+  // In addition to the discos found in the vod manifest, the disco sequence will increment when the live manifest loops
+  // (since looping back to the beginning causes another disco to be added to the live window)
   event.discontinuity = Math.floor((startposition === 0 ? startposition : (startposition - 1)) / (resource.length)) + event.discomod;
   event.dropped = startposition;
 
@@ -414,9 +414,6 @@ const extractResourceWindow = function(mfest, duration, event, streamtype) {
 
         if (referencedResource === 0) {
           resource[i].disco = '#EXT-X-DISCONTINUITY';
-        }
-
-        if (resource[i].disco) {
           lines.push(resource[i].disco);
         }
 
