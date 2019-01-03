@@ -135,7 +135,7 @@ const getSegmentHeader = function(lines, index, event) {
     } else if (lines[i].indexOf('EXT-X-BYTERANGE') > -1) {
       byterange=lines[i];
     } else if (lines[i].indexOf('EXT-X-DISCONTINUITY') > -1 && lines[i].indexOf('EXT-X-DISCONTINUITY-SEQUENCE') === -1) {
-      disco=lines[i];
+      disco = lines[i];
     } else if (lines[i].indexOf('EXT-X-CUE') > -1 ||
         (lines[i].indexOf('EXT-X-MAP') > -1)) {
       header = lines[i] + '\n' + header;
