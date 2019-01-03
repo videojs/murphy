@@ -597,6 +597,7 @@ const parseMaster = function(request, response, body) {
   var line;
   var indexOfIp;
   var strm;
+  var urlParamValue;
 
   if (request.query.event) {
     eventType = request.query.event;
@@ -614,8 +615,9 @@ const parseMaster = function(request, response, body) {
             line = trimCharacters(lines[i].substr(uriIndex + 5), ['\'', '/', '.']).replace(/['"]+/g, '').replace(/(\r)/gm,"");
             indexOfLastSlash = fullurl.lastIndexOf('/');
             baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
-            manifestUrl = `http://${request.headers.host}/${eventType}?url=${baseurl + trimCharacters(line, ['.', '/'])}`;
-            renditions.push(manifestUrl);
+            urlParamValue = baseurl + trimCharacters(line, ['.', '/']);
+            manifestUrl = `http://${request.headers.host}/${eventType}?url=${urlParamValue}`;
+            renditions.push(urlParamValue);
             lines[i] = lines[i].replace(line, manifestUrl);
           } else {
             line = trimCharacters(lines[i].substr(uriIndex + 5), ['\'', '/', '.']).replace(/['"]+/g, '');
@@ -630,9 +632,10 @@ const parseMaster = function(request, response, body) {
         indexOfLastSlash = fullurl.lastIndexOf('/');
         indexOfIp = fullurl.indexOf('master');
         baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
-        manifestUrl = `http://${request.headers.host}/${eventType}?url=${baseurl + trimCharacters(lines[i], ['.', '/'])}`;
+        urlParamValue = baseurl + trimCharacters(lines[i], ['.', '/']);
+        manifestUrl = `http://${request.headers.host}/${eventType}?url=${urlParamValue}`;
         debuglog('manifestUrl: ' + manifestUrl);
-        renditions.push(manifestUrl);
+        renditions.push(urlParamValue);
         lines[i] = manifestUrl;
       } else {
         renditions.push(trimCharacters(lines[i], ['.','/']));
