@@ -886,7 +886,7 @@ const trimCharacters = function(str, char) {
  */
 
 const getManifestObjects = function (request, response, body, streamtype, fullurl) {
-  var baseurl, renditionName, manifestHeader, manifestResources, tsstreampath, result, playlist, duration;
+  var baseurl, renditionName, manifestHeader, manifestResources, tsstreampath, result, playlist, duration, targetStream;
   if (fullurl) {
     var indexOfLastSlash = fullurl.lastIndexOf('/');
     baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
@@ -941,13 +941,13 @@ const getManifestObjects = function (request, response, body, streamtype, fullur
     tsstreampath = manifest[streampath].resources[event.lastStartPosition + event.window + 1].tsfile;
     tsstreampath = trimCharacters(tsstreampath, ['/', '.']);
     console.log('Target for 404: ' + tsstreampath);
-    stream = getStream(tsstreampath);
+    targetStream = getStream(tsstreampath);
     //Pass error value to the ts stream
-    if (stream.tsNotFound) {
-      stream.tsNotFound++;
+    if (targetStream.tsNotFound) {
+      targetStream.tsNotFound++;
     }
     else {
-      stream.tsNotFound = 1;
+      targetStream.tsNotFound = 1;
     }
     event.tsNotFound--;
   }
