@@ -34,7 +34,11 @@ var defaults = {
   manifestnotfound: 0,
   resetStream: 0,
   stopStream: 0,
-  calculatedDuration: 0
+  calculatedDuration: 0,
+  // The number of additional discontinuities dropped from the resource window
+  discomod: 0,
+  // The index of discontinuities in the live window
+  discotrack: []
 };
 var event;
 var manifest = [];
@@ -111,11 +115,12 @@ const getHeaderObjects = function(fileContent) {
 
 const getSegmentHeader = function(lines, index, event) {
   var i,
-    header='',
-    byterange='',
-    datetime='',
+    header = '',
+    byterange = '',
+    datetime = '',
     segment,
-    segmentDuration=0;
+    disco = '',
+    segmentDuration = 0;
 
   for(i = (index - 1); i > 0; i--) {
     //Search backwards from index to get all header lines
@@ -129,8 +134,9 @@ const getSegmentHeader = function(lines, index, event) {
       header=lines[i];
     } else if (lines[i].indexOf('EXT-X-BYTERANGE') > -1) {
       byterange=lines[i];
+    } else if (lines[i].indexOf('EXT-X-DISCONTINUITY') > -1 && lines[i].indexOf('EXT-X-DISCONTINUITY-SEQUENCE') === -1) {
+      disco = lines[i];
     } else if (lines[i].indexOf('EXT-X-CUE') > -1 ||
-        (lines[i].indexOf('EXT-X-DISCONTINUITY') > -1 && lines[i].indexOf('EXT-X-DISCONTINUITY-SEQUENCE') === -1) ||
         (lines[i].indexOf('EXT-X-MAP') > -1)) {
       header = lines[i] + '\n' + header;
     } else {
@@ -153,6 +159,9 @@ const getSegmentHeader = function(lines, index, event) {
     console.log('assign segment.datetime');
     segment.datetime = datetime;
   }
+  if (disco != '') {
+    segment.disco = disco;
+  }
   return segment;
 };
 
@@ -168,7 +177,8 @@ const getResources = function(fileContent, request, event, baseurl) {
     reqpathmod,
     prepend_redirectFile = '',
     i,
-    j;
+    j,
+    resourceCount = 0;
 
   for (i = 0; i < lines.length; i++) {
     header = null;
@@ -177,6 +187,11 @@ const getResources = function(fileContent, request, event, baseurl) {
     if (/\.(ts|aac|m4s|mp4|vtt|webvtt)/i.test(lines[i])) {
 
       segment = getSegmentHeader(lines, i, event);
+
+      if (segment.disco) {
+        //Track indexes with discontinuities
+        event.discotrack.push(resourceCount);
+      }
 
       file = lines[i].replace(/(\r)/gm,"");
 
@@ -225,6 +240,7 @@ const getResources = function(fileContent, request, event, baseurl) {
         segment.tsfile = file;
       }
       resource.push(segment);
+      resourceCount++;
     }
   }
   return resource;
@@ -325,7 +341,15 @@ const extractResourceWindow = function(mfest, duration, event, streamtype) {
   debuglog('start before mod ' + startposition);
   debuglog('event start ' + event.start);
 
-  event.discontinuity = Math.floor(startposition / resource.length);
+  event.discomod = 0;
+  for (i = 0; i < event.discotrack.length; i++) {
+    // Each disco in the vod should cause the disco sequence to increment for each manifest loop
+    event.discomod += Math.floor((startposition + resource.length - 1 - event.discotrack[i]) / (resource.length) );
+  }
+
+  // In addition to the discos found in the vod manifest, the disco sequence will increment when the live manifest loops
+  // (since looping back to the beginning causes another disco to be added to the live window)
+  event.discontinuity = Math.floor((startposition === 0 ? startposition : (startposition - 1)) / (resource.length)) + event.discomod;
   event.dropped = startposition;
 
   if (event.dropped < 0) {
@@ -355,10 +379,17 @@ const extractResourceWindow = function(mfest, duration, event, streamtype) {
   debuglog('overflow: ' + overflow);
   debuglog('resource length: ' + resource.length);
   debuglog('rate: ' + event.rate);
+  debuglog('discomod: ' + event.discomod);
+  debuglog('discotrack: ' + event.discotrack);
+  debuglog('disco: ' + event.discontinuity);
 
   lines = extractHeader(header, event, streamtype);
 
   for(i = startposition; i <= endposition; i++) {
+    if (resource[i].disco) {
+      lines.push(resource[i].disco);
+    }
+
     if (resource[i].header) {
       lines.push(resource[i].header);
     }
@@ -382,7 +413,8 @@ const extractResourceWindow = function(mfest, duration, event, streamtype) {
         var referencedResource = i % resource.length;
 
         if (referencedResource === 0) {
-          lines.push('#EXT-X-DISCONTINUITY');
+          resource[i].disco = '#EXT-X-DISCONTINUITY';
+          lines.push(resource[i].disco);
         }
 
         if (resource[referencedResource].header) {
@@ -407,83 +439,6 @@ const extractResourceWindow = function(mfest, duration, event, streamtype) {
   }
   event.lastStartPosition = startposition;
   return lines;
-};
-
-
-
-/**
- * Filter a complete m3u8 playlist and return a view that simulates
- * live playback for the given time.
- * @param playlist {string} the contents of the m3u8 file
- * @param time {number} the amount of time that has passed since the
- * stream began
- * @param options {object} a hash of parameters that affect the timing
- * of the stream
- * @return {string} the lines of the playlist that would be available
- * at the specified time
- */
-const filterPlaylist = function(playlist, time, options) {
-  var startposition;
-  var endposition;
-  var overflow = 0;
-  var lines = playlist.split('\n');
-
-  options.init = getInitialValue(lines);
-  // the number of the time-varying lines to be shown
-  var temptime = (time * 0.001);
-
-
-  startposition = options.init + Math.floor(temptime / options.rate);
-  options.dropped = startposition;
-
-  debuglog('init: ' + options.init);
-  debuglog('time * 0.001 = ' + temptime);
-  debuglog('options.rate: ' + options.rate);
-  debuglog('(time * 0.001) / options.rate = ' + startposition);
-  debuglog('startposition' + startposition + '==options.init' + options.init);
-  debuglog(startposition == options.init);
-
-  startposition = startposition - (startposition % options.step);
-  if (startposition < options.init)
-    startposition = options.init + 1;
-
-  debuglog('startposition' + startposition + '%' + options.step + ' = ' + (startposition % options.step));
-
-  if ((startposition % options.step) == 0) {
-    debuglog('dropped: ' + options.dropped);
-  }
-
-  debuglog('((startposition' + startposition + '-event.init' + options.init +
-    ') % (lines.length' + lines.length + '-event.init' + options.init + ')) + ' +
-    'event.init'+options.init+' = ');
-
-  startposition = ((startposition - options.init) % (lines.length - options.init)) + options.init + 1;
-
-
-  endposition = startposition + options.window;
-  debuglog('lines.length: ' + lines.length);
-  debuglog('startposition: ' + startposition);
-  debuglog('endposition: ' + endposition);
-
-  var filteredLines = lines.slice(0, options.init);
-  if (endposition > lines.length) {
-    overflow = endposition - lines.length;
-    debuglog('overflow: ' + overflow);
-  }
-
-  filteredLines = filteredLines.concat(lines.slice(startposition, endposition));
-
-  if (overflow > 0) {
-    debuglog('overflow: ' + overflow);
-    filteredLines[filteredLines.length - 1] += '\n#EXT-X-DISCONTINUITY';
-    event.discontinuity++;
-    debuglog(filteredLines[filteredLines.length - 1]);
-    filteredLines = filteredLines.concat(lines.slice(options.init, options.init + overflow));
-    overflow = 0;
-  }
-
-  options.counter++;
-  return filteredLines.join('\n');
 };
 
 const ui = function(request, response) {
