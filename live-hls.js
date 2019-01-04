@@ -13,7 +13,7 @@ const http = require('http');
 const qs = require('querystring');
 
 var streams = {};
-var debug = 1;
+var debug = 0;
 var defaults = {
   // seconds per resource, defaults to target duration if no override
   // rate: 10,
@@ -185,7 +185,7 @@ const getResources = function(fileContent, request, event, baseurl) {
     file = null;
 
     if (/\.(ts|aac|m4s|mp4|vtt|webvtt)/i.test(lines[i])) {
-      
+
       segment = getSegmentHeader(lines, i, event);
 
       if (segment.disco) {
@@ -452,7 +452,17 @@ const ui = function(request, response) {
 
     for (key in streams) {
       if (key.indexOf('.m3u8') > -1) {
-        button = '<td><button onclick=\"injectError(\'../'+key.replace('live', 'error')+'?errorcode=1\')\">errortext</button></td>';
+        let streamPath;
+
+        if (key.indexOf('http') > -1) {
+          // this is a remote stream
+          streamPath = `../error/${key}`;
+        } else {
+          // local stream
+          streamPath = `../${key.replace('live', 'error')}`;
+        }
+
+        button = '<td><button onclick="injectError(\''+streamPath+'?errorcode=1\')">errortext</button></td>';
         rows += '<tr><td>' + key + '</td>'+
           button.replace('errorcode', 'tsNotFound').replace('errortext','ts404') +
           button.replace('errorcode', 'manifestnotfound').replace('errortext','manifest404') + '</tr>\n';
@@ -542,6 +552,7 @@ const parseMaster = function(request, response, body) {
   var line;
   var indexOfIp;
   var strm;
+  var urlParamValue;
 
   if (request.query.event) {
     eventType = request.query.event;
@@ -559,8 +570,9 @@ const parseMaster = function(request, response, body) {
             line = trimCharacters(lines[i].substr(uriIndex + 5), ['\'', '/', '.']).replace(/['"]+/g, '').replace(/(\r)/gm,"");
             indexOfLastSlash = fullurl.lastIndexOf('/');
             baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
-            manifestUrl = `http://${request.headers.host}/${eventType}?url=${baseurl + trimCharacters(line, ['.', '/'])}`;
-            renditions.push(manifestUrl);
+            urlParamValue = baseurl + trimCharacters(line, ['.', '/']);
+            manifestUrl = `http://${request.headers.host}/${eventType}?url=${urlParamValue}`;
+            renditions.push(urlParamValue);
             lines[i] = lines[i].replace(line, manifestUrl);
           } else {
             line = trimCharacters(lines[i].substr(uriIndex + 5), ['\'', '/', '.']).replace(/['"]+/g, '');
@@ -575,9 +587,10 @@ const parseMaster = function(request, response, body) {
         indexOfLastSlash = fullurl.lastIndexOf('/');
         indexOfIp = fullurl.indexOf('master');
         baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
-        manifestUrl = `http://${request.headers.host}/${eventType}?url=${baseurl + trimCharacters(lines[i], ['.', '/'])}`;
+        urlParamValue = baseurl + trimCharacters(lines[i], ['.', '/']);
+        manifestUrl = `http://${request.headers.host}/${eventType}?url=${urlParamValue}`;
         debuglog('manifestUrl: ' + manifestUrl);
-        renditions.push(manifestUrl);
+        renditions.push(urlParamValue);
         lines[i] = manifestUrl;
       } else {
         renditions.push(trimCharacters(lines[i], ['.','/']));
@@ -749,14 +762,17 @@ const dataRequest = function(request, response) {
 
 
 const processErrors = function(request, response, event) {
-  if (event.tsNotFound > 0 && request.path.indexOf('.ts') > -1) {
+  // when remote url in use, there is no path and url is instead in query string
+  const requestPath = request.path ? request.path : request.query.url;
+
+  if (event.tsNotFound > 0 && requestPath.indexOf('.ts') > -1) {
     event.tsNotFound--;
     console.log('send ts 404');
     response.status(404).send('not found');
     return true;
   }
 
-  if (event.manifestnotfound>0 && request.path.indexOf('.m3u8') > -1) {
+  if (event.manifestnotfound>0 && requestPath.indexOf('.m3u8') > -1) {
     event.manifestnotfound--;
     console.log('send manifest 404');
     response.status(404).send('not found');
@@ -766,7 +782,7 @@ const processErrors = function(request, response, event) {
   if (event.resetStream > 0) {
     //1 - Reset just this stream
     if (event.resetStream === 1) {
-      resetLiveStream('live' + request.path);
+      resetLiveStream('live' + requestPath);
     }
     //2 - Reset all streams
     if (event.resetStream === 2) {
@@ -778,7 +794,7 @@ const processErrors = function(request, response, event) {
     //1 - Stop just this stream
 
     if (event.stopStream === 1) {
-      stopLiveStream('live' + request.path);
+      stopLiveStream('live' + requestPath);
     }
     //2 - Stop all streams
     if (event.stopStream === 2) {
@@ -793,7 +809,14 @@ const processErrors = function(request, response, event) {
  * Injects error into an existing stream.
  */
 const injectError = function(request, response) {
-  var streamname='live' + request.path;
+  // remove the leading slash
+  var streamname = request.path.slice(1);
+
+  if (request.path.indexOf('http') === -1) {
+    // local asset so we need to point to add live/ to the stream name
+    streamname = 'live/' + streamname;
+  }
+
   event = extend(getStream(streamname), request.query);
   console.log('tsNotFound in ' + streamname + ' = ' + event.tsNotFound);
   return response.send(200, 'injected into ' + streamname);
@@ -821,7 +844,7 @@ const trimCharacters = function(str, char) {
  */
 
 const getManifestObjects = function (request, response, body, streamtype, fullurl) {
-  var baseurl, renditionName, manifestHeader, manifestResources, tsstreampath, result, playlist, duration;
+  var baseurl, renditionName, manifestHeader, manifestResources, tsstreampath, result, playlist, duration, targetStream;
   if (fullurl) {
     var indexOfLastSlash = fullurl.lastIndexOf('/');
     baseurl = fullurl.slice(0, indexOfLastSlash) + '/';
@@ -876,13 +899,13 @@ const getManifestObjects = function (request, response, body, streamtype, fullur
     tsstreampath = manifest[streampath].resources[event.lastStartPosition + event.window + 1].tsfile;
     tsstreampath = trimCharacters(tsstreampath, ['/', '.']);
     console.log('Target for 404: ' + tsstreampath);
-    stream = getStream(tsstreampath);
+    targetStream = getStream(tsstreampath);
     //Pass error value to the ts stream
-    if (stream.tsNotFound) {
-      stream.tsNotFound++;
+    if (targetStream.tsNotFound) {
+      targetStream.tsNotFound++;
     }
     else {
-      stream.tsNotFound = 1;
+      targetStream.tsNotFound = 1;
     }
     event.tsNotFound--;
   }

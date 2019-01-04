@@ -5,6 +5,7 @@
 
 var
   express = require('express'),
+  path = require('path'),
   http = require('http'),
   app = express(),
   murphyPort = process.argv[2] || process.env.MURPHY_PORT || 9191,
@@ -76,6 +77,17 @@ app.use('/event', liveHls.eventFunction);
 // simulate live HLS playlists with limited seeking support,
 // a.k.a. "sliding window"
 app.use('/live', liveHls.live);
+
+app.get('/crossdomain.xml', function(req, res) {
+  fs.readFile(path.join(__dirname, 'crossdomain.xml'), function(error, data) {
+    if (error) {
+      return res.send(404, error);
+    }
+
+    res.set('Content-Type', 'application/xml');
+    res.send(data);
+  });
+});
 
 http.createServer(app).listen(murphyPort, function() {
   console.log('listening for requests at', os.hostname(), 'on port', murphyPort);
