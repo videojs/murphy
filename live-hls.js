@@ -1,7 +1,9 @@
 'use strict';
+
 /**
  * Routes that help simulate live HLS playlists.
  */
+
 const fs = require('fs');
 const os = require('os');
 const extend = require('lodash').extend;
@@ -50,6 +52,7 @@ const debuglog = function(str) {
     console.log(str);
   }
 };
+
 const getHeaderObjects = function(fileContent) {
   let lines = fileContent.split('\n'),
     indexOfColon,
@@ -452,20 +455,23 @@ const ui = function(request, response) {
 
     for (key in streams) {
       if (key.indexOf('.m3u8') > -1) {
-        let streamPath;
+        let errorPath;
 
         if (key.indexOf('http') > -1) {
           // this is a remote stream
-          streamPath = `../error/${key}`;
+          errorPath = `../error/${key}`;
         } else {
           // local stream
-          streamPath = `../${key.replace('live', 'error')}`;
+          errorPath = `../${key.replace('live', 'error')}`;
         }
 
-        button = '<td><button onclick="injectError(\''+streamPath+'?errorcode=1\')">errortext</button></td>';
+        button = '<td><button onclick="makeRequest(\'url?errorcode\')">errortext</button></td>';
         rows += '<tr><td>' + key + '</td>'+
-          button.replace('errorcode', 'tsNotFound').replace('errortext','ts404') +
-          button.replace('errorcode', 'manifestnotfound').replace('errortext','manifest404') + '</tr>\n';
+          button.replace('url', errorPath).replace('errorcode', 'tsNotFound=1').replace('errortext','Trigger a 404 for the next ts response') +
+          button.replace('url', errorPath).replace('errorcode', 'manifestnotfound=1').replace('errortext','Trigger a 404 for the next manifest response') +
+          button.replace('url', '/live').replace('errorcode', 'resetStream=1&url=' + key).replace('errortext','Reset stream') +
+          button.replace('url', '/live').replace('errorcode', 'stopStream=1&url=' + key).replace('errortext','Stop stream') +
+          '</tr>\n';
       }
 
       if (/\.(ts|aac|m4s|mp4|vtt|webvtt)/i.test(key)) {
@@ -502,6 +508,7 @@ const getStream = function(name) {
 
 const resetLiveStream = function(name) {
   console.log('resetting stream:', name);
+  delete manifest[name];
   delete streams[name];
   return getStream(name);
 };
@@ -514,7 +521,8 @@ const resetAllStreams = function() {
 };
 
 const stopLiveStream = function(name) {
-  console.log('stop stream:', name);
+  console.log('stopping stream:', name);
+  delete manifest[name];
   delete streams[name];
 };
 
@@ -531,10 +539,7 @@ const parseQueryString = function(queryString) {
 
 /**
  *  ParseMaster parses the master manifest and creates a murphy stream for each rendition and starts each rendition at the same time.
-
-
  */
-
 const parseMaster = function(request, response, body) {
   var result = body.toString();
   var lines = result.split('\n');
@@ -623,15 +628,15 @@ const parseMaster = function(request, response, body) {
       console.log('start rendition stream: ' + renditions[i] + ' start: ' + strm.start);
     }
 
-    if (request.query.stopStream == 1) {
+    if (Number(request.query.stopStream) == 1) {
       stopLiveStream(renditions[i]);
     }
   }
 
-  if (request.query.resetStream == 2) {
+  if (Number(request.query.resetStream) == 2) {
     resetAllStreams();
   }
-  if (request.query.stopStream == 2) {
+  if (Number(request.query.stopStream) == 2) {
     stopAllStreams();
   }
 
@@ -779,27 +784,22 @@ const processErrors = function(request, response, event) {
     return true;
   }
 
-  if (event.resetStream > 0) {
-    //1 - Reset just this stream
-    if (event.resetStream === 1) {
-      resetLiveStream('live' + requestPath);
-    }
-    //2 - Reset all streams
-    if (event.resetStream === 2) {
-      resetAllStreams();
-    }
+  //1 - Reset just this stream
+  if (Number(event.resetStream) === 1) {
+    resetLiveStream('live' + requestPath);
+
+  //2 - Reset all streams
+  } else if (Number(event.resetStream) === 2) {
+    resetAllStreams();
   }
 
-  if (event.stopStream > 0) {
-    //1 - Stop just this stream
+  //1 - Stop just this stream
+  if (Number(event.stopStream) === 1) {
+    stopLiveStream('live' + requestPath);
 
-    if (event.stopStream === 1) {
-      stopLiveStream('live' + requestPath);
-    }
-    //2 - Stop all streams
-    if (event.stopStream === 2) {
-      stopAllStreams();
-    }
+  //2 - Stop all streams
+  } else if (Number(event.stopStream) === 2) {
+    stopAllStreams();
   }
 
   return false;
@@ -819,7 +819,8 @@ const injectError = function(request, response) {
 
   event = extend(getStream(streamname), request.query);
   console.log('tsNotFound in ' + streamname + ' = ' + event.tsNotFound);
-  return response.send(200, 'injected into ' + streamname);
+  return response.send(200, 'Error has been injected based on params: ' +
+    Object.keys(request.query).filter(key => { return key !== '__proto__' }));
 };
 
 const trimCharacters = function(str, char) {
@@ -875,23 +876,28 @@ const getManifestObjects = function (request, response, body, streamtype, fullur
     };
   }
 
-  if (event.resetStream === 1) {
+  if (Number(event.resetStream) === 1) {
     event.resetStream = 0;
     resetLiveStream(streampath);
+    return response.send(`Stream ${streampath} has been reset.`);
   }
-  if (event.resetStream === 2) {
+
+  if (Number(event.resetStream) === 2) {
     event.resetStream = 0;
     resetAllStreams();
+    return response.send(`All streams have been reset.`);
   }
 
-  if (event.stopStream === 1) {
-    event.resetStream = 0;
-    stopLiveStream(streampath);
+  if (Number(event.stopStream) === 1) {
+    event.stopStream = 0;
+    stopLiveStream(streampath)
+    return response.send(`Stream ${streampath} has been stopped.`);
   }
 
-  if (event.stopStream === 2) {
-    event.resetStream = 0;
+  if (Number(event.stopStream) === 2) {
+    event.stopStream = 0;
     stopAllStreams();
+    return response.send(`All streams have been stopped.`);
   }
 
   if (event.tsNotFound > 0) {
