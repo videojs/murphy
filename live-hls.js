@@ -345,10 +345,8 @@ const extractResourceWindow = function(mfest, duration, event, streamtype) {
 
   event.discomod = 0;
 
-  if (header.Discontinuity.value) {
-    // use starting discontinuity sequence if original manifest has one
-    event.discomod = parseInt(header.Discontinuity.value, 10);
-  }
+  // use starting discontinuity sequence if original manifest has one
+  event.discomod = parseInt(header.Discontinuity.value, 10) || 0;
 
   for (i = 0; i < event.discotrack.length; i++) {
     // Each disco in the vod should cause the disco sequence to increment for each manifest loop
