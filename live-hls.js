@@ -343,8 +343,6 @@ const extractResourceWindow = function(mfest, duration, event, streamtype) {
   debuglog('start before mod ' + startposition);
   debuglog('event start ' + event.start);
 
-  event.discomod = 0;
-
   // use starting discontinuity sequence if original manifest has one
   event.discomod = parseInt(header.Discontinuity.value, 10) || 0;
 
