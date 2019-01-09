@@ -305,28 +305,27 @@ const extractHeader = function(header, event, streamtype) {
   return lines;
 };
 
-const calculateDatetime = function(event, resource, i) {
+const calculateDatetime = function(event, resource, i, position) {
   var currentDateTime;
   var DateObject;
+  var elapsedMs = 0;
 
   currentDateTime = resource[i].datetime.split('TIME:')[1];
   DateObject = new Date(currentDateTime);
 
-  // Determine if the stream has looped yet
-  if (event.dropped > (resource.length - event.window)) {
-    // Adjust datetime according to the number of loops have occurred.
-    if (event.calculatedDuration > 0) {
-      // If we have values based on EXTINF, use the sum of all EXTINF to calculate loop
-      DateObject.setSeconds(DateObject.getSeconds() + event.calculatedDuration);
-    } else {
-      // If we don't have values based on EXTINF, use targetDuration (which event.rate is based on) to calculate loop
-      var delta = (Math.floor((event.dropped + event.window) / resource.length)
-                    * event.window) * event.rate;
-      DateObject.setSeconds(DateObject.getSeconds() + delta);
-    }
+  // TODO: This currently only works for playlists where every segment duration matches
+  //       target duration.This will have to be updated to use individual segment durations
+  //       to support playlists with varying segment durations.
+
+  if (position >= resource.length) {
+    elapsedMs = (position - i) * event.rate * 1000;
   }
-  debuglog('#EXT-X-PROGRAM-DATE-TIME:' + DateObject.toISOString());
-  return DateObject.toISOString();
+
+  var ret = new Date(DateObject.getTime() + elapsedMs);
+
+  debuglog('#EXT-X-PROGRAM-DATE-TIME:' + ret.toISOString());
+
+  return ret.toISOString();
 };
 
 const extractResourceWindow = function(mfest, duration, event, streamtype) {
@@ -344,7 +343,9 @@ const extractResourceWindow = function(mfest, duration, event, streamtype) {
   debuglog('start before mod ' + startposition);
   debuglog('event start ' + event.start);
 
-  event.discomod = 0;
+  // use starting discontinuity sequence if original manifest has one
+  event.discomod = parseInt(header.Discontinuity.value, 10) || 0;
+
   for (i = 0; i < event.discotrack.length; i++) {
     // Each disco in the vod should cause the disco sequence to increment for each manifest loop
     event.discomod += Math.floor((startposition + resource.length - 1 - event.discotrack[i]) / (resource.length) );
@@ -398,7 +399,7 @@ const extractResourceWindow = function(mfest, duration, event, streamtype) {
     }
 
     if (resource[i].datetime) {
-      lines.push('#EXT-X-PROGRAM-DATE-TIME:' + calculateDatetime(event, resource, i));
+      lines.push('#EXT-X-PROGRAM-DATE-TIME:' + calculateDatetime(event, resource, i, event.dropped + (i - startposition)));
     }
 
     if (resource[i].byterange) {
@@ -425,7 +426,8 @@ const extractResourceWindow = function(mfest, duration, event, streamtype) {
         }
 
         if (resource[referencedResource].datetime) {
-          lines.push('#EXT-X-PROGRAM-DATE-TIME:' + calculateDatetime(event, resource, i));
+          // dropped + portion of window that is not overflow + amount overflow
+          lines.push('#EXT-X-PROGRAM-DATE-TIME:' + calculateDatetime(event, resource, referencedResource, event.dropped + (endposition - startposition + 1) + i));
         }
 
         if (resource[referencedResource].byterange) {
@@ -469,6 +471,8 @@ const ui = function(request, response) {
         rows += '<tr><td>' + key + '</td>'+
           button.replace('url', errorPath).replace('errorcode', 'tsNotFound=1').replace('errortext','Trigger a 404 for the next ts response') +
           button.replace('url', errorPath).replace('errorcode', 'manifestnotfound=1').replace('errortext','Trigger a 404 for the next manifest response') +
+          button.replace('url', errorPath).replace('errorcode', 'manifestnotfound=2').replace('errortext','Trigger a 404 for every manifest response') +
+          button.replace('url', errorPath).replace('errorcode', 'manifestnotfound=0').replace('errortext','Trigger a 200 for every manifest response') +
           button.replace('url', '/live').replace('errorcode', 'resetStream=1&url=' + key).replace('errortext','Reset stream') +
           button.replace('url', '/live').replace('errorcode', 'stopStream=1&url=' + key).replace('errortext','Stop stream') +
           '</tr>\n';
@@ -777,10 +781,15 @@ const processErrors = function(request, response, event) {
     return true;
   }
 
-  if (event.manifestnotfound>0 && requestPath.indexOf('.m3u8') > -1) {
-    event.manifestnotfound--;
+  if (Number(event.manifestnotfound) > 0 && requestPath.indexOf('.m3u8') > -1) {
     console.log('send manifest 404');
     response.status(404).send('not found');
+
+    if (Number(event.manifestnotfound) === 1) {
+      // a value of 1 means only trigger 404 for 1 response
+      event.manifestnotfound = 0;
+    }
+
     return true;
   }
 
