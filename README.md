@@ -35,7 +35,7 @@ For an external appending window single rendition stream point to to the event p
 
 ## Local Manifest
 In the path to the manifest with `live/`. If you wanted to try a live version of `http://localhost:9191/data/maat/bunny/video/video.m3u8`,
-for instance, you would request `http://localhost:9191/data/maat/bunny/video/video.m3u8`
+for instance, you would request `http://localhost:9191/live/maat/bunny/video/video.m3u8`
 
 The Live Stream simulator also takes into account multiple renditions. To access the master playlist, the following master file points to four
 live simulated renditions of maat planet. `http://localhost:9191/master/maat/planet.m3u8`
